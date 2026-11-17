@@ -38,3 +38,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .requirement-table td:nth-child(2){min-width:170px}
 .requirement-table td:last-child{width:54px;text-align:center}
 .empty-requirements{color:#8ca9c6!important;text-align:center;padding:22px!important}
+
+/* Percentage suffixes in editable table cells */
+.numeric-percent{position:relative;display:block;width:100%;min-width:0}
+.numeric-percent input{padding-right:26px!important;text-align:right;width:100%}
+.numeric-percent .percent-mark{position:absolute;right:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:#8b9cb3;font-size:12px}

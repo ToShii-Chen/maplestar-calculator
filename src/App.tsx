@@ -5,8 +5,14 @@ const storage='maplestar-calculator-v1';
 const num=(v:string)=>v===''?0:Number(v);
 const fmt=(n:number,d=0)=>n.toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d});
 function load():Data{try{const v=JSON.parse(localStorage.getItem(storage)||'null');if(v?.version===1&&Array.isArray(v.characters)&&v.characters.length)return v}catch{}return newData()}
-function NumberInput({value,onChange,placeholder='0'}:{value:number;onChange:(v:number)=>void;placeholder?:string}){return <input type="number" inputMode="decimal" value={value===0?'':value} placeholder={placeholder} onChange={e=>onChange(num(e.target.value))}/>}
-function Field({label,value,onChange,unit}:{label:string;value:number;onChange:(n:number)=>void;unit?:string}){return <label className="field"><span>{label}</span><div className="field-control"><NumberInput value={value} onChange={onChange}/>{unit&&<span className="unit">{unit}</span>}</div></label>}
+function NumberInput({value,onChange,placeholder='0',percent=false}:{value:number;onChange:(v:number)=>void;placeholder?:string;percent?:boolean}){
+ const input=<input type="number" inputMode="decimal" value={value===0?'':value} placeholder={placeholder} onChange={e=>onChange(num(e.target.value))}/>;
+ return percent?<span className="numeric-percent">{input}<span className="percent-mark">%</span></span>:input;
+}
+function Field({label,value,onChange,unit}:{label:string;value:number;onChange:(n:number)=>void;unit?:string}){
+ const suffix=unit??(label.includes('(%)')?'%':undefined);
+ return <label className="field"><span>{label}</span><div className="field-control"><NumberInput value={value} onChange={onChange}/>{suffix&&<span className="unit">{suffix}</span>}</div></label>;
+}
 function Section({title,description,children}:{title:string;description?:string;children:React.ReactNode}){return <section className="panel"><div className="panel-heading"><h2>{title}</h2>{description&&<p>{description}</p>}</div>{children}</section>}
 const statOptions:[Character['mainStat'],string][]=[['str','力量'],['dex','敏捷'],['int','智力'],['luk','幸運']];
 const simpleLabels:[keyof Simple,string][]=[['attack','攻擊力'],['main','主屬性'],['sub','副屬性']];
@@ -39,7 +45,7 @@ function SkillSettings({c,update}:{c:Character;update:(c:Character)=>void}){
  const change=(i:number,k:keyof Skill,v:number|string)=>update({...c,skills:c.skills.map((s,j)=>i===j?{...s,[k]:v}:s)});
  const add=()=>update({...c,skills:[...c.skills,{name:'',attack:0,main:0,sub:0,attackPct:0}]});
  const remove=(i:number)=>update({...c,skills:c.skills.filter((_,j)=>j!==i)});
- return <Section title="技能加成"><div className="table-scroll"><table className="data-table editable"><thead><tr><th>技能</th><th>攻擊力</th><th>主屬性</th><th>副屬性</th><th>攻擊力(%)</th><th></th></tr></thead><tbody>{c.skills.map((s,i)=><tr key={i}><td><input className="name-input" value={s.name} aria-label={`技能${i+1}名稱`} placeholder="技能名稱" onChange={e=>change(i,'name',e.target.value)}/></td>{(['attack','main','sub','attackPct'] as const).map(k=><td key={k}><NumberInput value={s[k]} onChange={v=>change(i,k,v)}/></td>)}<td><button className="icon-button" title="移除此技能" aria-label="移除此技能" disabled={c.skills.length<=1} onClick={()=>remove(i)}><Trash2 size={16}/></button></td></tr>)}</tbody></table></div><button className="ghost add-row" onClick={add}><Plus size={16}/>新增技能</button></Section>
+ return <Section title="技能加成"><div className="table-scroll"><table className="data-table editable"><thead><tr><th>技能</th><th>攻擊力</th><th>主屬性</th><th>副屬性</th><th>攻擊力(%)</th><th></th></tr></thead><tbody>{c.skills.map((s,i)=><tr key={i}><td><input className="name-input" value={s.name} aria-label={`技能${i+1}名稱`} placeholder="技能名稱" onChange={e=>change(i,'name',e.target.value)}/></td>{(['attack','main','sub','attackPct'] as const).map(k=><td key={k}><NumberInput value={s[k]} percent={k==='attackPct'} onChange={v=>change(i,k,v)}/></td>)}<td><button className="icon-button" title="移除此技能" aria-label="移除此技能" disabled={c.skills.length<=1} onClick={()=>remove(i)}><Trash2 size={16}/></button></td></tr>)}</tbody></table></div><button className="ghost add-row" onClick={add}><Plus size={16}/>新增技能</button></Section>
 }
 
 function DamagePage({c,monster,update}:{c:Character;monster:Data['monster'];update:(c:Character)=>void}){
@@ -56,7 +62,7 @@ function EquipmentPage({c,update}:{c:Character;update:(c:Character)=>void}){
  const changeSet=(i:number,k:keyof Simple,v:number)=>update({...c,sets:Array.from({length:5},(_,j)=>j===i?{...(c.sets[j]??{attack:0,main:0,sub:0}),[k]:v}:(c.sets[j]??{attack:0,main:0,sub:0}))});
  const groups=['武器類','防具類','飾品類','其他類'];
  return <>
- {groups.map(group=><Section key={group} title={group}><div className="table-scroll"><table className="data-table editable gear-table"><thead><tr><th>裝備</th>{gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k,label])=><th key={k}>{label}</th>)}</tr></thead><tbody>{c.gear.filter(g=>g.group===group).map(g=><tr key={g.id}><td className="sticky-name">{g.name}</td>{gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k])=>{const enabled=k==='potentialAttackPct'?(g.name==='武器'||g.name==='副武／標誌'):true;return <td key={k}>{enabled?<NumberInput value={Number(g[k])||0} onChange={v=>change(g.id,k,v)}/>:<span className="na">—</span>}</td>})}</tr>)}</tbody></table></div></Section>)}
+ {groups.map(group=><Section key={group} title={group}><div className="table-scroll"><table className="data-table editable gear-table"><thead><tr><th>裝備</th>{gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k,label])=><th key={k}>{label}</th>)}</tr></thead><tbody>{c.gear.filter(g=>g.group===group).map(g=><tr key={g.id}><td className="sticky-name">{g.name}</td>{gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k])=>{const enabled=k==='potentialAttackPct'?(g.name==='武器'||g.name==='副武／標誌'):true;return <td key={k}>{enabled?<NumberInput value={Number(g[k])||0} percent={k.endsWith('Pct')} onChange={v=>change(g.id,k,v)}/>:<span className="na">—</span>}</td>})}</tr>)}</tbody></table></div></Section>)}
  <Section title="套裝效果"><div className="table-scroll"><table className="data-table editable"><thead><tr><th>項目</th>{simpleLabels.map(([k,label])=><th key={k}>{label}</th>)}</tr></thead><tbody>{Array.from({length:5},(_,i)=><tr key={i}><td>效果{i+1}</td>{simpleLabels.map(([k])=><td key={k}><NumberInput value={c.sets[i]?.[k]??0} onChange={v=>changeSet(i,k,v)}/></td>)}</tr>)}</tbody></table></div></Section></>
 }
 
