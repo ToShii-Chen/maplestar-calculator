@@ -66,3 +66,15 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .main{padding-top:24px}
 @media(max-width:900px){.top-primary{gap:12px;padding:0 14px}.top-primary .brand-icon{width:34px;height:34px}.top-primary .brand strong{font-size:14px}.top-primary .brand small{font-size:9px}.top-primary .tabs .tab{padding:12px 10px}.top-secondary .subtabs{padding:0 12px}}
 @media(max-width:600px){.top{height:auto;display:block;padding:0;align-items:initial;flex-direction:initial}.top-primary{min-height:64px;gap:9px;padding:0 10px;flex-direction:row;align-items:center}.top-primary .brand{gap:6px}.top-primary .brand-icon{display:none}.top-primary .brand strong{font-size:12px}.top-primary .brand small{display:none}.top-primary .tabs{gap:2px;align-self:stretch}.top-secondary .subtabs{padding:0 8px;gap:2px}.top-secondary .subtabs button{padding:10px 8px}.main{padding-top:16px}}
+
+/* Separate equipment potentials from inherent stats */
+.gear-table th.gear-potential{background:#24415b;color:#c7e6ff}
+.gear-table td.gear-potential{background:rgba(49,98,139,.18)}
+.gear-table .potential-start{border-left:3px solid #5387b5}
+.gear-table tbody tr:hover td.gear-potential{background:rgba(62,112,155,.30)}
+.gear-table th.gear-standard{background:#1b2a3e}
+.page-descriptions{font-size:14px;color:#aebed1;line-height:1.7;margin:22px 0}
+.page-descriptions p{margin:0 0 6px}
+.lock-set-toggles{margin-top:20px;display:flex;gap:12px 22px;flex-wrap:wrap}
+.lock-set-toggle{display:flex;align-items:center;gap:9px;font-size:14px;color:#c8d6e7;cursor:pointer}
+.lock-set-toggle input{width:17px;height:17px;accent-color:#6ca9ec;cursor:pointer}

@@ -10,8 +10,8 @@ export type Simple={attack:number;main:number;sub:number};
 export const zeroSimple=():Simple=>({attack:0,main:0,sub:0});
 export type Requirement={id:string;gearId:string;required:number};
 export type CharacterSubTab='settings'|'skills'|'gear'|'damage'|'subcheck';
-export type Character={id:string;name:string;lastSubTab?:CharacterSubTab;mainStat:'str'|'dex'|'int'|'luk';subStat:'str'|'dex'|'int'|'luk';baseMain:number;baseSub:number;mastery:number;weaponCoefficient:number;mapleBlessing:number;skills:Skill[];requirements?:Requirement[];consumables:Simple & {attack2:number};sets:Simple[];gear:Gear[];extra:{attack:number;main:number;sub:number;attackPct:number;mainPct:number;subPct:number}};
-export const newCharacter=(id:string,name='欄位'):Character=>({id,name,lastSubTab:'settings',mainStat:'str',subStat:'dex',baseMain:4,baseSub:4,mastery:20,weaponCoefficient:1.2,mapleBlessing:0,skills:defaultSkills(),requirements:[{id:'requirement-1',gearId:'',required:0}],consumables:{...zeroSimple(),attack2:0},sets:Array.from({length:5},zeroSimple),gear:defaultGear(),extra:{attack:0,main:0,sub:0,attackPct:0,mainPct:0,subPct:0}});
+export type Character={id:string;name:string;lastSubTab?:CharacterSubTab;mainStat:'str'|'dex'|'int'|'luk';subStat:'str'|'dex'|'int'|'luk';baseMain:number;baseSub:number;mastery:number;weaponCoefficient:number;mapleBlessing:number;skills:Skill[];requirements?:Requirement[];lockCheckExtraSub?:number;lockCheckDisabledSets?:boolean[];consumables:Simple & {attack2:number};sets:Simple[];gear:Gear[];extra:{attack:number;main:number;sub:number;attackPct:number;mainPct:number;subPct:number}};
+export const newCharacter=(id:string,name='欄位'):Character=>({id,name,lastSubTab:'settings',mainStat:'str',subStat:'dex',baseMain:4,baseSub:4,mastery:20,weaponCoefficient:1.2,mapleBlessing:0,skills:defaultSkills(),requirements:[{id:'requirement-1',gearId:'',required:0}],lockCheckExtraSub:0,lockCheckDisabledSets:[false,false,false],consumables:{...zeroSimple(),attack2:0},sets:Array.from({length:5},zeroSimple),gear:defaultGear(),extra:{attack:0,main:0,sub:0,attackPct:0,mainPct:0,subPct:0}});
 export type Data={version:1;monster:Stats;ied:number[];oldIed:number;newIed:number;characters:Character[]};
 export const newData=():Data=>({version:1,monster:{...blankMonster},ied:Array(7).fill(0),oldIed:0,newIed:0,characters:[newCharacter('character-1')]});
 export const percent=(n:number)=>Math.max(0,Math.min(100,n))/100;
@@ -40,7 +40,7 @@ export function calculate(c:Character,monster:Stats){
 /**
  * Equip unrestricted items first, then constrained items in ascending required sub-stat order.
  * Only worn equipment contributes its non-potential fixed sub-stat; all equipment potentials are excluded, including equipped items.
- * Global buffs, skills, and set bonuses are assumed already active, matching the damage sheet.
+ * Global buffs and skills remain active. Lock-check-only bonus sub-stat and the three configurable set toggles affect only this simulation.
  */
 export function checkSubRequirements(c:Character, monster:Stats){
  const numeric=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)?v:0;
@@ -50,7 +50,7 @@ export function checkSubRequirements(c:Character, monster:Stats){
  const restrictions=[...requiredByGear].map(([gearId,required])=>({gear:c.gear.find(g=>g.id===gearId),required})).filter((x):x is {gear:Gear;required:number}=>!!x.gear).sort((a,b)=>a.required-b.required||a.gear.name.localeCompare(b.gear.name));
  const equipped=c.gear.filter(g=>!requiredByGear.has(g.id));
  const blessing=Math.floor((c.mapleBlessing+1)/2)/100;
- const base=Math.floor(c.baseSub*(1+blessing)+0.1)+numeric(c.consumables.sub)+numeric(monster[c.subStat])+numeric(monster.all)+sum(c.skills.map(s=>s.sub))+sum(c.sets.map(s=>s.sub));
+ const base=Math.floor(c.baseSub*(1+blessing)+0.1)+numeric(c.consumables.sub)+numeric(monster[c.subStat])+numeric(monster.all)+sum(c.skills.map(s=>s.sub))+sum(c.sets.filter((_,i)=>i>=3||!c.lockCheckDisabledSets?.[i]).map(s=>s.sub))+numeric(c.lockCheckExtraSub);
  const total=()=>Math.floor((base+sum(equipped.map(g=>numeric(g.sub))))*(1+numeric(monster.allPct)/100));
  const failed:{gearId:string;name:string;required:number;available:number}[]=[];
  for(const {gear,required} of restrictions){
