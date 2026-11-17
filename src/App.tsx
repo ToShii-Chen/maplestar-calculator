@@ -13,7 +13,7 @@ function Field({label,value,onChange,unit}:{label:string;value:number;onChange:(
  const suffix=unit??(label.includes('(%)')?'%':undefined);
  return <label className="field"><span>{label}</span><div className="field-control"><NumberInput value={value} onChange={onChange}/>{suffix&&<span className="unit">{suffix}</span>}</div></label>;
 }
-function Section({title,description,children}:{title:string;description?:string;children:React.ReactNode}){return <section className="panel"><div className="panel-heading"><h2>{title}</h2>{description&&<p>{description}</p>}</div>{children}</section>}
+function Section({title,description,action,children}:{title:string;description?:string;action?:React.ReactNode;children:React.ReactNode}){return <section className="panel"><div className="panel-heading"><div className="panel-title-row"><h2>{title}</h2>{action}</div>{description&&<p>{description}</p>}</div>{children}</section>}
 const statOptions:[Character['mainStat'],string][]=[['str','力量'],['dex','敏捷'],['int','智力'],['luk','幸運']];
 const simpleLabels:[keyof Simple,string][]=[['attack','攻擊力'],['main','主屬性'],['sub','副屬性']];
 const gearKeys:[keyof Gear,string][]=[['attack','攻擊力'],['main','主屬性'],['sub','副屬性'],['potentialAttack','潛能攻擊力'],['potentialMain','潛能主屬性'],['potentialSub','潛能副屬性'],['potentialAttackPct','潛能攻擊力(%)'],['potentialMainPct','潛能主屬性(%)'],['potentialSubPct','潛能副屬性(%)']];
@@ -41,11 +41,24 @@ function CharacterSettings({c,update}:{c:Character;update:(c:Character)=>void}){
  return <><Section title="角色設定"><div className="fields-grid four"><label className="field"><span>主屬性種類</span><select value={c.mainStat} onChange={e=>patch({mainStat:e.target.value as Character['mainStat']})}>{statOptions.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label><label className="field"><span>副屬性種類</span><select value={c.subStat} onChange={e=>patch({subStat:e.target.value as Character['subStat']})}>{statOptions.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label><Field label="武器熟練度(%)" value={c.mastery} unit="%" onChange={v=>patch({mastery:v})}/><Field label="武器係數" value={c.weaponCoefficient} onChange={v=>patch({weaponCoefficient:v})}/></div></Section>
  <Section title="武器係數參考"><div className="weapon-reference">{weaponGroups.map(([group,items])=><div key={group} className="weapon-group"><h3>{group}</h3>{items.map(([name,coefficient])=><div className="weapon-row" key={name}><span>{name}</span><strong>{coefficient.toFixed(2)}</strong></div>)}</div>)}</div><p className="hint">參考常見舊版楓之谷數值；楓星若有不同設定，請以上方可編輯的武器係數為準。</p></Section></>
 }
+const statName=(c:Character,key:'main'|'sub')=>statOptions.find(([id])=>id===(key==='main'?c.mainStat:c.subStat))?.[1]??(key==='main'?'主屬性':'副屬性');
+const previewTerms=(c:Character,v:Partial<Record<'attack'|'main'|'sub'|'attackPct'|'mainPct'|'subPct',number>>)=>{
+ const labels:[keyof typeof v,string,boolean][]=[
+ ['attack','攻擊力',false],['main',statName(c,'main'),false],['sub',statName(c,'sub'),false],
+ ['attackPct','攻擊力',true],['mainPct',statName(c,'main'),true],['subPct',statName(c,'sub'),true]];
+ return labels.flatMap(([key,label,pct])=>{const value=v[key]??0;return Number.isFinite(value)&&value!==0?[`${value}${pct?'%':''}${label}`]:[]});
+};
+function EffectPreview({items}:{items:{label:string;text:string}[]}){
+ const shown=items.filter(item=>item.text);
+ return shown.length?<div className="effect-preview">{shown.map(item=><div key={item.label} className="effect-preview-row"><strong>{item.label}</strong><span> - {item.text}</span></div>)}</div>:null;
+}
 function SkillSettings({c,update}:{c:Character;update:(c:Character)=>void}){
  const change=(i:number,k:keyof Skill,v:number|string)=>update({...c,skills:c.skills.map((s,j)=>i===j?{...s,[k]:v}:s)});
  const add=()=>update({...c,skills:[...c.skills,{name:'',attack:0,main:0,sub:0,attackPct:0}]});
  const remove=(i:number)=>update({...c,skills:c.skills.filter((_,j)=>j!==i)});
- return <Section title="技能加成"><div className="table-scroll"><table className="data-table editable"><thead><tr><th>技能</th><th>攻擊力</th><th>主屬性</th><th>副屬性</th><th>攻擊力(%)</th><th></th></tr></thead><tbody>{c.skills.map((s,i)=><tr key={i}><td><input className="name-input" value={s.name} aria-label={`技能${i+1}名稱`} placeholder="技能名稱" onChange={e=>change(i,'name',e.target.value)}/></td>{(['attack','main','sub','attackPct'] as const).map(k=><td key={k}><NumberInput value={s[k]} percent={k==='attackPct'} onChange={v=>change(i,k,v)}/></td>)}<td><button className="icon-button" title="移除此技能" aria-label="移除此技能" disabled={c.skills.length<=1} onClick={()=>remove(i)}><Trash2 size={16}/></button></td></tr>)}</tbody></table></div><button className="ghost add-row" onClick={add}><Plus size={16}/>新增技能</button></Section>
+ const [showPreview,setShowPreview]=useState(false);
+ const previewItems=c.skills.map((skill,i)=>({label:skill.name.trim()||`技能${i+1}`,text:previewTerms(c,skill).join(' ')}));
+ return <Section title="技能加成" action={<button className="ghost preview-toggle" type="button" onClick={()=>setShowPreview(v=>!v)}>{showPreview?'關閉效果預覽':'展開效果預覽'}</button>}><div className="table-scroll"><table className="data-table editable"><thead><tr><th>技能</th><th>攻擊力</th><th>主屬性</th><th>副屬性</th><th>攻擊力(%)</th><th></th></tr></thead><tbody>{c.skills.map((s,i)=><tr key={i}><td><input className="name-input" value={s.name} aria-label={`技能${i+1}名稱`} placeholder="技能名稱" onChange={e=>change(i,'name',e.target.value)}/></td>{(['attack','main','sub','attackPct'] as const).map(k=><td key={k}><NumberInput value={s[k]} percent={k==='attackPct'} onChange={v=>change(i,k,v)}/></td>)}<td><button className="icon-button" title="移除此技能" aria-label="移除此技能" disabled={c.skills.length<=1} onClick={()=>remove(i)}><Trash2 size={16}/></button></td></tr>)}</tbody></table></div><button className="ghost add-row" onClick={add}><Plus size={16}/>新增技能</button>{showPreview&&<EffectPreview items={previewItems}/>}</Section>
 }
 
 function DamagePage({c,monster,update}:{c:Character;monster:Data['monster'];update:(c:Character)=>void}){
@@ -72,12 +85,19 @@ function DamagePage({c,monster,update}:{c:Character;monster:Data['monster'];upda
  </Section></>
 }
 function EquipmentPage({c,update}:{c:Character;update:(c:Character)=>void}){
+ const [expanded,setExpanded]=useState<Record<string,boolean>>({});
+ const toggle=(key:string)=>setExpanded(v=>({...v,[key]:!v[key]}));
+ const button=(key:string)=><button type="button" className="ghost preview-toggle" onClick={()=>toggle(key)}>{expanded[key]?'關閉效果預覽':'展開效果預覽'}</button>;
  const change=(id:string,k:keyof Gear,v:number)=>update({...c,gear:c.gear.map(g=>g.id===id?{...g,[k]:v}:g)});
  const changeSet=(i:number,k:keyof Simple,v:number)=>update({...c,sets:Array.from({length:5},(_,j)=>j===i?{...(c.sets[j]??{attack:0,main:0,sub:0}),[k]:v}:(c.sets[j]??{attack:0,main:0,sub:0}))});
  const groups=['武器類','防具類','飾品類','其他類'];
  return <>
- {groups.map(group=><Section key={group} title={group}><div className="table-scroll"><table className="data-table editable gear-table"><thead><tr><th>裝備</th>{gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k,label])=><th key={k}>{label}</th>)}</tr></thead><tbody>{c.gear.filter(g=>g.group===group).map(g=><tr key={g.id}><td className="sticky-name">{g.name}</td>{gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k])=>{const enabled=k==='potentialAttackPct'?(g.name==='武器'||g.name==='副武／標誌'):true;return <td key={k}>{enabled?<NumberInput value={Number(g[k])||0} percent={k.endsWith('Pct')} onChange={v=>change(g.id,k,v)}/>:<span className="na">—</span>}</td>})}</tr>)}</tbody></table></div></Section>)}
- <Section title="套裝效果"><div className="table-scroll"><table className="data-table editable"><thead><tr><th>項目</th>{simpleLabels.map(([k,label])=><th key={k}>{label}</th>)}</tr></thead><tbody>{Array.from({length:5},(_,i)=><tr key={i}><td>效果{i+1}</td>{simpleLabels.map(([k])=><td key={k}><NumberInput value={c.sets[i]?.[k]??0} onChange={v=>changeSet(i,k,v)}/></td>)}</tr>)}</tbody></table></div></Section></>
+ {groups.map(group=><Section key={group} title={group} action={button(group)}><div className="table-scroll"><table className="data-table editable gear-table"><thead><tr><th>裝備</th>{gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k,label])=><th key={k}>{label}</th>)}</tr></thead><tbody>{c.gear.filter(g=>g.group===group).map(g=><tr key={g.id}><td className="sticky-name">{g.name}</td>{gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k])=>{const enabled=k==='potentialAttackPct'?(g.name==='武器'||g.name==='副武／標誌'):true;return <td key={k}>{enabled?<NumberInput value={Number(g[k])||0} percent={k.endsWith('Pct')} onChange={v=>change(g.id,k,v)}/>:<span className="na">—</span>}</td>})}</tr>)}</tbody></table></div>{expanded[group]&&<EffectPreview items={c.gear.filter(g=>g.group===group).map(g=>{
+ const basic=previewTerms(c,{attack:g.attack,main:g.main,sub:g.sub}).join(' ');
+ const potential=previewTerms(c,{attack:g.potentialAttack,main:g.potentialMain,sub:g.potentialSub,attackPct:g.potentialAttackPct,mainPct:g.potentialMainPct,subPct:g.potentialSubPct}).join(' ');
+ return {label:g.name,text:[basic,potential?`潛能: ${potential}`:''].filter(Boolean).join(', ')};
+ })}/>}</Section>)}
+ <Section title="套裝效果" action={button('sets')}><div className="table-scroll"><table className="data-table editable"><thead><tr><th>項目</th>{simpleLabels.map(([k,label])=><th key={k}>{label}</th>)}</tr></thead><tbody>{Array.from({length:5},(_,i)=><tr key={i}><td>效果{i+1}</td>{simpleLabels.map(([k])=><td key={k}><NumberInput value={c.sets[i]?.[k]??0} onChange={v=>changeSet(i,k,v)}/></td>)}</tr>)}</tbody></table></div>{expanded.sets&&<EffectPreview items={Array.from({length:5},(_,i)=>({label:`效果${i+1}`,text:previewTerms(c,c.sets[i]??{attack:0,main:0,sub:0}).join(' ')}))}/>}</Section></>
 }
 
 function SubStatPage({c,monster,update}:{c:Character;monster:Data['monster'];update:(c:Character)=>void}){

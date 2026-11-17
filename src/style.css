@@ -48,3 +48,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .recommendation-table td:last-child,.recommendation-table th:last-child{text-align:right;font-variant-numeric:tabular-nums}
 .recommendation-table td:first-child{width:75px;color:#94acc8}
 .recommendation-table td:nth-child(2){font-weight:600}
+
+/* Expandable effect summaries */
+.panel-title-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.panel-title-row .preview-toggle{flex-shrink:0}
+.effect-preview{margin-top:18px;border-top:1px solid #314359;padding-top:14px;display:grid;gap:9px}
+.effect-preview-row{font-size:14px;line-height:1.6;color:#bdcee2;overflow-wrap:anywhere}
+.effect-preview-row strong{font-weight:650;color:#e8f0fb}
