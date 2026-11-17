@@ -19,3 +19,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .icon-button:hover,.danger-tab{color:#ff8b93!important}
 @media(max-width:800px){.fields-grid.four{grid-template-columns:repeat(2,minmax(0,1fr))}.weapon-reference{grid-template-columns:1fr}}
 @media(max-width:560px){.fields-grid.four,.fields-grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* right aligned numbers and workspace controls */
+.field input,.field select,.editable td input[type="number"]{text-align:right}
+.field select{text-align-last:right;direction:ltr}
+.blessing-info{display:flex;align-items:center;color:#9ec9f0;font-size:14px;padding:30px 4px 0}
+.subtabs{flex-wrap:wrap;align-items:stretch}
+.subtab-spacer{flex:1;min-width:12px}
+.import-tab{cursor:pointer;font-size:14px;display:inline-flex;align-items:center;gap:8px}
+.import-tab:hover{color:#fff;background:#1a2535}
+@media(max-width:720px){.subtab-spacer{flex-basis:100%;height:0}.blessing-info{padding-top:18px}}
