@@ -74,7 +74,7 @@ function DamagePage({c,monster,update}:{c:Character;monster:Data['monster'];upda
  const recommendations=enhancements.map(([field,amount,label],index)=>{
   const extra={attack:0,main:0,sub:0,attackPct:0,mainPct:0,subPct:0,[field]:amount};
   const tested=calculate({...c,extra},monster);
-  return {label:roleLabel(c,label),gain:tested.afterRange-calc.range,index};
+  return {label:roleLabel(c,label),gain:tested.afterRange-calc.range,pct:calc.range>0?(tested.afterRange-calc.range)/calc.range*100:null,index};
  }).sort((a,b)=>b.gain-a.gain||a.index-b.index);
  return <><div className="page-descriptions"><p>表攻最大值計算、裝備提升期望計算與推薦</p><p>因公式中進位條件可能與遊戲不同，數值可能與遊戲內有些微誤差。</p></div><Section title="基本設定"><div className="fields-grid two"><Field label={roleLabel(c,"主屬性（能力配點）")} value={c.baseMain} onChange={v=>patch({baseMain:v})}/><Field label={roleLabel(c,"副屬性（能力配點）")} value={c.baseSub} onChange={v=>patch({baseSub:v})}/></div><div className="fields-grid two spaced"><Field label="楓葉祝福等級" value={c.mapleBlessing} onChange={v=>patch({mapleBlessing:v})}/><div className="blessing-info">楓葉祝福提升 {fmt(calc.blessing)}%全屬性</div></div></Section>
  <Section title="額外效果"><div className="fields-grid three">{([['attack','攻擊力'],['main','主屬性'],['sub','副屬性']] as [keyof Simple,string][]).map(([k,label])=><Field key={k} label={roleLabel(c,label)} value={c.consumables[k]} onChange={v=>patch({consumables:{...c.consumables,[k]:v}})}/>)}</div></Section>
@@ -82,7 +82,7 @@ function DamagePage({c,monster,update}:{c:Character;monster:Data['monster'];upda
  <Section title="額外裝備提升試算"><div className="fields-grid three">{([['attack','攻擊力'],['main','主屬性'],['sub','副屬性'],['attackPct','攻擊力(%)'],['mainPct','主屬性(%)'],['subPct','副屬性(%)']] as [keyof Character['extra'],string][]).map(([k,label])=><Field key={k} label={roleLabel(c,label)} value={c.extra[k]} unit={k.endsWith('Pct')?'%':undefined} onChange={v=>patch({extra:{...c.extra,[k]:v}})}/>)}</div><div className="metrics spaced">{metric('最終攻擊力',calc.afterAttack)}{metric('最終主屬性',calc.afterMain)}{metric('最終副屬性',calc.afterSub)}</div><div className="result-strip"><span>提升後表攻上限</span><strong>{fmt(calc.afterRange)}</strong></div><div className="result-strip"><span>表攻提升幅度(%)</span><strong className={boost!==null&&boost<0?'negative':'positive'}>{boost===null?'無法計算':`${boost>0?'+':''}${fmt(boost,1)}%`}</strong></div></Section>
  <Section title="推薦強化" description="各項強化分別加入目前角色數值，依表攻上限增加量由高到低排序；不包含額外裝備提升試算中的數值。">
   <div className="table-scroll"><table className="data-table recommendation-table"><thead><tr><th>排名</th><th>強化項目</th><th>表攻提升數值</th></tr></thead>
-  <tbody>{recommendations.map((r,i)=><tr key={r.index}><td>{i+1}</td><td>{r.label}</td><td className={r.gain>0?'positive':''}>{r.gain>0?'+':''}{fmt(r.gain)}</td></tr>)}</tbody></table></div>
+  <tbody>{recommendations.map((r,i)=><tr key={r.index}><td>{i+1}</td><td>{r.label}</td><td className={r.gain>0?'positive':''}>{r.gain>0?'+':''}{fmt(r.gain)} ({r.pct===null?'無法計算':`${r.pct>0?'+':''}${fmt(r.pct,1)}%`})</td></tr>)}</tbody></table></div>
  </Section></>
 }
 function EquipmentPage({c,update}:{c:Character;update:(c:Character)=>void}){
@@ -173,7 +173,7 @@ function App(){
  },[tab,sub]);
  const updateCharacter=(c:Character)=>setData(d=>({...d,characters:d.characters.map(x=>x.id===c.id?c:x)}));
  const selectCharacter=(c:Character)=>{setTab(c.id);setLastCharacter(c.id);setSub(c.lastSubTab??'settings')};
- const openCalculator=()=>{const c=data.characters.find(x=>x.id===lastCharacter)??data.characters[0];if(c)selectCharacter(c)};
+ const openCalculator=()=>{if(tab==='ied')setTab('monster')};
  useEffect(()=>{try{if(lastCharacter)localStorage.setItem('maplestar-last-character',lastCharacter)}catch{}},[lastCharacter]);
  const selectSub=(next:CharacterSubTab)=>{setSub(next);if(current)setData(d=>({...d,characters:d.characters.map(x=>x.id===current.id?{...x,lastSubTab:next}:x)}))};
  const add=()=>{const id=`character-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;setData(d=>({...d,characters:[...d.characters,newCharacter(id)]}));setTab(id);setLastCharacter(id);setSub('settings')};
@@ -204,14 +204,14 @@ function App(){
  };
  return <div className="app"><header className="top">
  <div className="top-primary"><div className="brand"><div className="brand-icon"><Calculator size={21}/></div><div><strong>楓星計算工具</strong><small>MapleStar Toolkit</small></div></div>
- <nav className="tabs" aria-label="主功能頁籤"><button className={tab==='monster'?'tab active':'tab'} onClick={()=>setTab('monster')}><BookOpen size={16}/>怪物圖鑑</button>
- <button className={tab==='ied'?'tab active':'tab'} onClick={()=>setTab('ied')}><Calculator size={16}/>無視防禦計算</button>
- <button className={current?'tab active':'tab'} onClick={openCalculator}><Calculator size={16}/>傷害計算機</button></nav></div>
- {current&&<><div className="top-secondary"><div className="character-nav">
- <nav className="tabs character-tabs" aria-label="角色欄位">{data.characters.map(c=><button key={c.id} className={tab===c.id?'tab active':'tab'} onClick={()=>selectCharacter(c)} title={c.name}>{c.name}</button>)}<button className="tab add-tab" onClick={add} aria-label="新增欄位"><Plus size={19}/></button></nav>
+ <nav className="tabs" aria-label="主功能頁籤">
+ <button className={tab!=='ied'?'tab active':'tab'} onClick={openCalculator}><Calculator size={16}/>傷害計算機</button>
+ <button className={tab==='ied'?'tab active':'tab'} onClick={()=>setTab('ied')}><Calculator size={16}/>無視防禦計算</button></nav></div>
+ {tab!=='ied'&&<><div className="top-secondary"><div className="character-nav">
+ <nav className="tabs character-tabs" aria-label="角色欄位"><button className={tab==='monster'?'tab active':'tab'} onClick={()=>setTab('monster')}><BookOpen size={16}/>怪物圖鑑</button>{data.characters.map(c=><button key={c.id} className={tab===c.id?'tab active':'tab'} onClick={()=>selectCharacter(c)} title={c.name}>{c.name}</button>)}<button className="tab add-tab" onClick={add} aria-label="新增欄位"><Plus size={19}/></button></nav>
  <label className="tab import-tab"><Upload size={16}/>匯入json<input type="file" accept=".json,application/json" hidden onChange={e=>{void importCharacter(e.target.files?.[0]);e.target.value=''}}/></label>
  </div></div>
- <div className="top-tertiary"><div className="subtabs"><button className={sub==='settings'?'selected':''} onClick={()=>selectSub('settings')}>角色設定</button><button className={sub==='skills'?'selected':''} onClick={()=>selectSub('skills')}>技能設定</button><button className={sub==='gear'?'selected':''} onClick={()=>selectSub('gear')}>裝備</button><button className={sub==='damage'?'selected':''} onClick={()=>selectSub('damage')}>傷害計算</button><button className={sub==='subcheck'?'selected':''} onClick={()=>selectSub('subcheck')}>鎖潛檢查</button><span className="subtab-spacer"/><button onClick={exportCharacter}><Download size={15}/>匯出json</button><button onClick={()=>{setNewName(current.name);setRename(true)}}>重新命名 <ChevronRight size={15}/></button><button className="danger-tab" onClick={remove}><Trash2 size={15}/>刪除該欄位</button></div></div></>}
+ {current&&<div className="top-tertiary"><div className="subtabs"><button className={sub==='settings'?'selected':''} onClick={()=>selectSub('settings')}>角色設定</button><button className={sub==='skills'?'selected':''} onClick={()=>selectSub('skills')}>技能設定</button><button className={sub==='gear'?'selected':''} onClick={()=>selectSub('gear')}>裝備</button><button className={sub==='damage'?'selected':''} onClick={()=>selectSub('damage')}>傷害計算</button><button className={sub==='subcheck'?'selected':''} onClick={()=>selectSub('subcheck')}>鎖潛檢查</button><span className="subtab-spacer"/><button onClick={exportCharacter}><Download size={15}/>匯出json</button><button onClick={()=>{setNewName(current.name);setRename(true)}}>重新命名 <ChevronRight size={15}/></button><button className="danger-tab" onClick={remove}><Trash2 size={15}/>刪除該欄位</button></div></div>}</>}
  </header>
  <main className="main">
  {tab==='monster'?<MonsterPage data={data} set={setData}/>:tab==='ied'?<IedPage data={data} set={setData}/>:current?<>
