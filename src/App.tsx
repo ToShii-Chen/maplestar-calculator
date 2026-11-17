@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {Plus,BookOpen,Calculator,Download,Upload,RotateCcw,ChevronRight,Trash2} from 'lucide-react';
 import {blankMonster,calculate,combinedIed,defenseDamage,improvement,monsterFields,newCharacter,newData,type Character,type CharacterSubTab,type Data,type Gear,type Simple,type Skill,type Requirement,checkSubRequirements} from './model';
 const storage='maplestar-calculator-v1';
@@ -130,14 +130,47 @@ function SubStatPage({c,monster,update}:{c:Character;monster:Data['monster'];upd
 
 function App(){
  const [data,setData]=useState<Data>(load);
- const [tab,setTab]=useState('monster');
- const [sub,setSub]=useState<CharacterSubTab>('settings');
+ const [tab,setTab]=useState<string>(()=>{
+  try {
+   const saved=localStorage.getItem('maplestar-last-view');
+   if(saved==='monster'||saved==='ied')return saved;
+   const state=JSON.parse(localStorage.getItem(storage)||'null') as Data|null;
+   if(state?.characters?.some(c=>c.id===saved))return saved??'monster';
+  }catch{}
+  return 'monster';
+ });
+ const [sub,setSub]=useState<CharacterSubTab>(()=>{
+  try {
+   const saved=localStorage.getItem('maplestar-last-view');
+   const state=JSON.parse(localStorage.getItem(storage)||'null') as Data|null;
+   const c=state?.characters?.find(x=>x.id===saved);
+   return c?.lastSubTab??'settings';
+  }catch{return 'settings'}
+ });
+ const initialScroll=useRef(true);
  const [lastCharacter,setLastCharacter]=useState<string>(()=>{try{return localStorage.getItem('maplestar-last-character')||''}catch{return ''}});
  const [rename,setRename]=useState(false);
  const [newName,setNewName]=useState('');
  const [notice,setNotice]=useState('');
  useEffect(()=>{localStorage.setItem(storage,JSON.stringify(data))},[data]);
  const current=data.characters.find(c=>c.id===tab);
+ useEffect(()=>{try{localStorage.setItem('maplestar-last-view',tab)}catch{}},[tab]);
+ useEffect(()=>{
+  const key=tab==='monster'||tab==='ied'?tab:tab+'|'+sub;
+  const scrollKey='maplestar-view-scroll-'+key;
+  let position=0;
+  try{position=Number(localStorage.getItem(scrollKey)||0)||0}catch{}
+  let frame2=0;
+  const frame1=requestAnimationFrame(()=>{
+   frame2=requestAnimationFrame(()=>{
+    window.scrollTo({top:Math.max(0,position),behavior:'instant'});
+    initialScroll.current=false;
+   });
+  });
+  const saveScroll=()=>{if(initialScroll.current)return;try{localStorage.setItem(scrollKey,String(window.scrollY))}catch{}};
+  window.addEventListener('scroll',saveScroll,{passive:true});
+  return ()=>{window.removeEventListener('scroll',saveScroll);cancelAnimationFrame(frame1);cancelAnimationFrame(frame2)};
+ },[tab,sub]);
  const updateCharacter=(c:Character)=>setData(d=>({...d,characters:d.characters.map(x=>x.id===c.id?c:x)}));
  const selectCharacter=(c:Character)=>{setTab(c.id);setLastCharacter(c.id);setSub(c.lastSubTab??'settings')};
  const openCalculator=()=>{const c=data.characters.find(x=>x.id===lastCharacter)??data.characters[0];if(c)selectCharacter(c)};
