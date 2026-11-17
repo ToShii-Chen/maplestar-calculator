@@ -97,7 +97,7 @@ function EquipmentPage({c,update}:{c:Character;update:(c:Character)=>void}){
  const potential=previewTerms(c,{attack:g.potentialAttack,main:g.potentialMain,sub:g.potentialSub,attackPct:g.potentialAttackPct,mainPct:g.potentialMainPct,subPct:g.potentialSubPct}).join(', ');
  return {label:g.name,text:[basic,potential?`潛能: ${potential}`:''].filter(Boolean).join(', ')};
  })}/>}</Section>)}
- <Section title="套裝效果" action={button('sets')}><div className="table-scroll"><table className="data-table editable"><thead><tr><th>項目</th>{simpleLabels.map(([k,label])=><th key={k}>{label}</th>)}</tr></thead><tbody>{Array.from({length:5},(_,i)=><tr key={i}><td>效果{i+1}</td>{simpleLabels.map(([k])=><td key={k}><NumberInput value={c.sets[i]?.[k]??0} onChange={v=>changeSet(i,k,v)}/></td>)}</tr>)}</tbody></table></div>{expanded.sets&&<EffectPreview items={Array.from({length:5},(_,i)=>({label:`效果${i+1}`,text:previewTerms(c,c.sets[i]??{attack:0,main:0,sub:0}).join(', ')}))}/>}</Section></>
+ <Section title="套裝效果" action={button('sets')}><div className="table-scroll"><table className="data-table editable"><thead><tr><th>項目</th>{simpleLabels.map(([k,label])=><th key={k}>{label}</th>)}</tr></thead><tbody>{Array.from({length:5},(_,i)=><tr key={i}><td>套裝效果{i+1}</td>{simpleLabels.map(([k])=><td key={k}><NumberInput value={c.sets[i]?.[k]??0} onChange={v=>changeSet(i,k,v)}/></td>)}</tr>)}</tbody></table></div>{expanded.sets&&<EffectPreview items={Array.from({length:5},(_,i)=>({label:`效果${i+1}`,text:previewTerms(c,c.sets[i]??{attack:0,main:0,sub:0}).join(', ')}))}/>}</Section></>
 }
 
 function SubStatPage({c,monster,update}:{c:Character;monster:Data['monster'];update:(c:Character)=>void}){
@@ -107,11 +107,6 @@ function SubStatPage({c,monster,update}:{c:Character;monster:Data['monster'];upd
  const selections=new Set(rows.map(r=>r.gearId).filter(Boolean));
  const add=()=>patch([...rows,{id:'requirement-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),gearId:'',required:0}]);
  return <><p className="intro">模擬遭遇鎖潛敵技時，裝備是否能正常套用。</p>
- <Section title="鎖潛檢查額外設定"><div className="fields-grid two"><Field label="透過秘藥或隊友效果獲得副屬性" value={c.lockCheckExtraSub??0} onChange={v=>update({...c,lockCheckExtraSub:v})}/></div><p className="hint">勾選的套裝效果將在鎖潛檢查中停用，不影響傷害計算。</p>
- <div className="lock-set-toggles">{Array.from({length:5},(_,i)=><label key={i} className="lock-set-toggle">
- <input type="checkbox" checked={c.lockCheckDisabledSets?.[i]??false} onChange={e=>update({...c,lockCheckDisabledSets:Array.from({length:5},(_,j)=>j===i?e.target.checked:(c.lockCheckDisabledSets?.[j]??false))})}/>
- <span>套裝效果{i+1}{previewTerms(c,c.sets[i]??{attack:0,main:0,sub:0}).length>0?' - '+previewTerms(c,c.sets[i]).join(', '):' - 無加成'}</span>
- </label>)}</div></Section>
  <Section title="副屬性需求"><div className="table-scroll"><table className="data-table editable requirement-table">
  <thead><tr><th>類別</th><th>副屬性需求</th><th></th></tr></thead>
  <tbody>{rows.map((r,i)=><tr key={r.id}>
@@ -122,6 +117,11 @@ function SubStatPage({c,monster,update}:{c:Character;monster:Data['monster'];upd
  </tr>)}</tbody></table></div>
  <button className="ghost add-row" onClick={add}><Plus size={16}/>新增欄位</button>
  </Section>
+ <Section title="鎖潛檢查額外設定"><div className="fields-grid two"><Field label="透過秘藥或隊友效果獲得副屬性" value={c.lockCheckExtraSub??0} onChange={v=>update({...c,lockCheckExtraSub:v})}/></div><p className="hint">勾選的套裝效果將在鎖潛檢查中停用，不影響傷害計算。</p>
+ <div className="lock-set-toggles">{Array.from({length:5},(_,i)=><label key={i} className="lock-set-toggle">
+ <input type="checkbox" checked={c.lockCheckDisabledSets?.[i]??true} onChange={e=>update({...c,lockCheckDisabledSets:Array.from({length:5},(_,j)=>j===i?e.target.checked:(c.lockCheckDisabledSets?.[j]??true))})}/>
+ <span>套裝效果{i+1}{(c.sets[i]?.sub??0)!==0?' - '+statName(c,'sub')+'+'+c.sets[i].sub:' - 無'+statName(c,'sub')+'加成'}</span>
+ </label>)}</div></Section>
  <Section title="無法穿上的裝備"><div className="table-scroll"><table className="data-table"><thead><tr><th>無法穿上的裝備類別</th><th>需求副屬性</th><th>現有副屬性</th></tr></thead>
  <tbody>{result.failed.length?result.failed.map(f=><tr key={f.gearId}><td>{f.name}</td><td>{fmt(f.required)}</td><td className="negative">{fmt(f.available)}</td></tr>):<tr><td colSpan={3} className="empty-requirements">目前沒有無法穿上的裝備</td></tr>}</tbody>
  </table></div></Section></>
@@ -143,12 +143,18 @@ function App(){
  useEffect(()=>{try{if(lastCharacter)localStorage.setItem('maplestar-last-character',lastCharacter)}catch{}},[lastCharacter]);
  const selectSub=(next:CharacterSubTab)=>{setSub(next);if(current)setData(d=>({...d,characters:d.characters.map(x=>x.id===current.id?{...x,lastSubTab:next}:x)}))};
  const add=()=>{const id=`character-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;setData(d=>({...d,characters:[...d.characters,newCharacter(id)]}));setTab(id);setLastCharacter(id);setSub('settings')};
- const remove=()=>{if(!current)return;if(!window.confirm(`確定刪除「${current.name}」？此操作無法復原。`))return;setData(d=>({...d,characters:d.characters.length<=1?[newCharacter(`character-${Date.now()}`)]:d.characters.filter(c=>c.id!==current.id)}));setTab('monster');setLastCharacter(prev=>prev===current.id?(data.characters.find(c=>c.id!==current.id)?.id??''):prev)};
+ const remove=()=>{
+  if(!current||!window.confirm(`確定刪除「${current.name}」？此操作無法復原。`))return;
+  const remaining=data.characters.filter(c=>c.id!==current.id);
+  const replacement=remaining[0]??newCharacter(`character-${Date.now()}`);
+  setData(d=>({...d,characters:remaining.length?remaining:[replacement]}));
+  setTab(replacement.id);setLastCharacter(replacement.id);setSub(replacement.lastSubTab??'settings');
+ };
  const exportCharacter=()=>{if(!current)return;const payload={format:'maplestar-character',version:1,character:current};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download=(current.name.replace(/[^\w\u4e00-\u9fff-]/g,'_')||'欄位')+'.json';anchor.click();URL.revokeObjectURL(url)};
  const importCharacter=async(f?:File)=>{if(!f)return;try{const obj=JSON.parse(await f.text());const c=obj?.format==='maplestar-character'&&obj.version===1?obj.character:null;
  if(!c||typeof c!=='object'||typeof c.name!=='string'||!c.name.trim()||!Array.isArray(c.gear)||!Array.isArray(c.skills)||!Array.isArray(c.sets)||!c.extra||!c.consumables||!['str','dex','int','luk'].includes(c.mainStat)||!['str','dex','int','luk'].includes(c.subStat)||typeof c.weaponCoefficient!=='number')throw Error('格式不正確');
  const id='character-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
- const imported:Character={...c,id,name:c.name.trim().slice(0,15),sets:Array.from({length:5},(_,i)=>c.sets[i]??{attack:0,main:0,sub:0}),lockCheckDisabledSets:Array.from({length:5},(_,i)=>Boolean(c.lockCheckDisabledSets?.[i]))};
+ const imported:Character={...c,id,name:c.name.trim().slice(0,10),sets:Array.from({length:5},(_,i)=>c.sets[i]??{attack:0,main:0,sub:0}),lockCheckDisabledSets:Array.from({length:5},(_,i)=>Boolean(c.lockCheckDisabledSets?.[i]))};
  setData(d=>({...d,characters:[...d.characters,imported]}));setTab(id);setLastCharacter(id);setSub('settings');setNotice('已匯入角色欄位');
  }catch{setNotice('匯入失敗：請選擇「匯出json」產生的角色檔案')}};
  const resetCurrent=()=>{const label=tab==='monster'?'怪物圖鑑':tab==='ied'?'無視防禦計算':sub==='settings'?'角色設定':sub==='skills'?'技能設定':sub==='gear'?'裝備':sub==='subcheck'?'鎖潛檢查':'傷害計算';
@@ -177,7 +183,7 @@ function App(){
  {tab==='monster'?<MonsterPage data={data} set={setData}/>:tab==='ied'?<IedPage data={data} set={setData}/>:current?<>
  {sub==='settings'?<CharacterSettings c={current} update={updateCharacter}/>:sub==='skills'?<SkillSettings c={current} update={updateCharacter}/>:sub==='gear'?<EquipmentPage c={current} update={updateCharacter}/>:sub==='damage'?<DamagePage c={current} monster={data.monster} update={updateCharacter}/>:<SubStatPage c={current} monster={data.monster} update={updateCharacter}/>}</>:null}
  <footer><span>作者: Satoshi</span><button onClick={resetCurrent}><RotateCcw size={14}/>還原至預設</button></footer></main>
- {rename&&current&&<div className="modal-backdrop" onClick={()=>setRename(false)}><div className="modal" role="dialog" aria-modal="true" aria-labelledby="rename-title" onClick={e=>e.stopPropagation()}><h2 id="rename-title">重新命名欄位</h2><p>名稱最多 15 個字。</p><input autoFocus maxLength={15} value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&newName.trim()){updateCharacter({...current,name:newName.trim()});setRename(false)}}}/><div className="modal-actions"><button className="ghost" onClick={()=>setRename(false)}>取消</button><button className="solid" disabled={!newName.trim()} onClick={()=>{updateCharacter({...current,name:newName.trim()});setRename(false)}}>儲存名稱</button></div></div></div>}
+ {rename&&current&&<div className="modal-backdrop"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="rename-title" onClick={e=>e.stopPropagation()}><h2 id="rename-title">重新命名欄位</h2><p>名稱最多 10 個字。</p><input autoFocus maxLength={10} value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&newName.trim()){updateCharacter({...current,name:newName.trim()});setRename(false)}}}/><div className="modal-actions"><button className="ghost" onClick={()=>setRename(false)}>取消</button><button className="solid" disabled={!newName.trim()} onClick={()=>{updateCharacter({...current,name:newName.trim()});setRename(false)}}>儲存名稱</button></div></div></div>}
  {notice&&<div className="toast" onClick={()=>setNotice('')}>{notice} ×</div>}</div>
 }
 export default App;
