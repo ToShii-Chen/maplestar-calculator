@@ -78,3 +78,17 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .lock-set-toggles{margin-top:20px;display:flex;gap:12px 22px;flex-wrap:wrap}
 .lock-set-toggle{display:flex;align-items:center;gap:9px;font-size:14px;color:#c8d6e7;cursor:pointer}
 .lock-set-toggle input{width:17px;height:17px;accent-color:#6ca9ec;cursor:pointer}
+
+/* Three-level sticky navigation */
+.top-primary .tabs{justify-content:flex-start}
+.top-secondary{border-top:1px solid #2b394b;background:#152032}
+.character-nav{max-width:1240px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:16px;min-width:0}
+.character-tabs{flex:1 1 auto;min-width:0;border:0;align-items:center}
+.character-nav .import-tab{flex:0 0 auto;margin-left:auto;white-space:nowrap;cursor:pointer}
+.top-tertiary{background:#141e2d;border-top:1px solid #2b394b}
+.top-tertiary .subtabs{max-width:1240px;margin:0 auto;padding:0 24px;min-width:0;border:0}
+.lock-set-toggles{display:grid;grid-template-columns:1fr;gap:12px}
+.lock-set-toggle{width:100%;align-items:flex-start}
+.lock-set-toggle input{flex:0 0 auto;margin-top:2px}
+@media(max-width:900px){.character-nav{padding:0 12px;gap:8px}.top-tertiary .subtabs{padding:0 12px}}
+@media(max-width:600px){.character-nav{padding:0 8px;gap:6px}.character-nav .import-tab{padding:10px 6px}.top-tertiary .subtabs{padding:0 8px}.top-primary .tabs{min-width:0}}
