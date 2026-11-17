@@ -1,11 +1,11 @@
 export type Stats = {str:number;dex:number;int:number;luk:number;all:number;allPct:number;attack:number;attackPct:number;damagePct:number;bossPct:number;ied:number};
 export const blankMonster:Stats={str:0,dex:0,int:0,luk:0,all:0,allPct:0,attack:0,attackPct:0,damagePct:0,bossPct:0,ied:0};
 export const monsterFields:[keyof Stats,string][]=[['str','力量'],['dex','敏捷'],['int','智力'],['luk','幸運'],['all','全屬性'],['allPct','全屬性(%)'],['attack','攻擊力'],['attackPct','攻擊力(%)'],['damagePct','總傷害(%)'],['bossPct','BOSS傷害(%)'],['ied','無視防禦(%)']];
-export type Gear={id:string;name:string;group:string;attack:number;main:number;sub:number;potentialAttack:number;potentialMain:number;potentialSub:number;potentialAttackPct:number;potentialMainPct:number;potentialSubPct:number};
-const groups:[string,string[]][]=[['武器類',['武器','副武／標誌','盾牌']],['防具類',['帽子','披風','手套','上衣（套服）','褲裙','鞋子']],['其他類',['徽章','勳章','口袋道具','機械心臟','圖騰','寵物裝備1','寵物裝備2','寵物裝備3']],['飾品類',['臉飾','眼飾','項鍊','腰帶','耳環','肩膀','戒指1','戒指2','戒指3','戒指4']]];
-export const defaultGear=():Gear[]=>groups.flatMap(([group,names])=>names.map((name,i)=>({id:`${group}-${i}`,name,group,attack:0,main:0,sub:0,potentialAttack:0,potentialMain:0,potentialSub:0,potentialAttackPct:0,potentialMainPct:0,potentialSubPct:0})));
+export type Gear={id:string;name:string;group:string;requiredSub:number;attack:number;main:number;sub:number;potentialAttack:number;potentialMain:number;potentialSub:number;potentialAttackPct:number;potentialMainPct:number;potentialSubPct:number};
+const groups:[string,string[]][]=[['武器類',['武器','副武／標誌','盾牌']],['防具類',['帽子','披風','手套','上衣（套服）','褲裙','鞋子']],['飾品類',['臉飾','眼飾','項鍊','腰帶','耳環','肩膀','戒指1','戒指2','戒指3','戒指4']],['其他類',['徽章','勳章','口袋道具','機械心臟','圖騰','寵物裝備1','寵物裝備2','寵物裝備3']]];
+export const defaultGear=():Gear[]=>groups.flatMap(([group,names])=>names.map((name,i)=>({id:`${group}-${i}`,name,group,requiredSub:0,attack:0,main:0,sub:0,potentialAttack:0,potentialMain:0,potentialSub:0,potentialAttackPct:0,potentialMainPct:0,potentialSubPct:0})));
 export type Skill={name:string;attack:number;main:number;sub:number;attackPct:number};
-export const defaultSkills=():Skill[]=>['女皇的祝福','傳授','靈魂灌注','體能訓練','依古尼斯','遠古意志','進階雙弩','進階終極','技能7','技能8','技能9','技能10','技能11','技能12'].map(name=>({name,attack:0,main:0,sub:0,attackPct:0}));
+export const defaultSkills=():Skill[]=>[{name:'女神的祝福',attack:0,main:0,sub:0,attackPct:0}];
 export type Simple={attack:number;main:number;sub:number};
 export const zeroSimple=():Simple=>({attack:0,main:0,sub:0});
 export type Character={id:string;name:string;mainStat:'str'|'dex'|'int'|'luk';subStat:'str'|'dex'|'int'|'luk';baseMain:number;baseSub:number;mastery:number;weaponCoefficient:number;mapleBlessing:number;skills:Skill[];consumables:Simple & {attack2:number};sets:Simple[];gear:Gear[];extra:{attack:number;main:number;sub:number;attackPct:number;mainPct:number;subPct:number}};
@@ -15,7 +15,7 @@ export const newData=():Data=>({version:1,monster:{...blankMonster},ied:Array(7)
 export const percent=(n:number)=>Math.max(0,Math.min(100,n))/100;
 export const combinedIed=(values:number[])=>100*(1-values.reduce((p,n)=>p*(1-percent(n)),1));
 export const defenseDamage=(defense:number,ied:number)=>Math.max(0,100*(1-defense/100*(1-percent(ied))));
-export const improvement=(oldDamage:number,newDamage:number)=>oldDamage<=0?(newDamage>0?null:0):(newDamage/oldDamage-1)*100;
+export const improvement=(oldDamage:number,newDamage:number)=>oldDamage<=0?null:(newDamage/oldDamage-1)*100;
 const sum=(values:number[])=>values.reduce((a,b)=>a+(Number.isFinite(b)?b:0),0);
 export function calculate(c:Character,monster:Stats){
  const g=c.gear; const sumGear=(key:keyof Gear,filter?:(x:Gear)=>boolean)=>sum(g.filter(filter??(()=>true)).map(x=>Number(x[key])||0));
@@ -28,7 +28,7 @@ export function calculate(c:Character,monster:Stats){
  const blessing=Math.floor((c.mapleBlessing+1)/2)/100;
  const fixedAttack=c.consumables.attack+c.consumables.attack2+monster.attack+sum(c.skills.map(s=>s.attack))+sum(c.sets.map(s=>s.attack))+basicAtk+potAtk;
  const fixedMain=Math.floor(c.baseMain*(1+blessing)+0.1)+c.consumables.main+monsterMain+sum(c.skills.map(s=>s.main))+sum(c.sets.map(s=>s.main))+basicMain+potMain;
- const fixedSub=Math.floor(c.baseSub*(1+blessing)+0.1)+c.consumables.sub+monsterSub+sum(c.skills.slice(0,-1).map(s=>s.sub))+sum(c.sets.map(s=>s.sub))+basicSub+potSub;
+ const fixedSub=Math.floor(c.baseSub*(1+blessing)+0.1)+c.consumables.sub+monsterSub+sum(c.skills.map(s=>s.sub))+sum(c.sets.map(s=>s.sub))+basicSub+potSub;
  const attackPct=monster.attackPct+sum(c.skills.map(s=>s.attackPct))+potAtkPct;
  const mainPct=monster.allPct+potMainPct,subPct=monster.allPct+potSubPct;
  const range=(a:number,m:number,s:number,ap:number,mp:number,sp:number)=>Math.floor(a*(1+ap/100)*(m*(1+mp/100)*4+s*(1+sp/100))*c.weaponCoefficient*.01);
