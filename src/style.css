@@ -55,3 +55,14 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .effect-preview{margin-top:18px;border-top:1px solid #314359;padding-top:14px;display:grid;gap:9px}
 .effect-preview-row{font-size:14px;line-height:1.6;color:#bdcee2;overflow-wrap:anywhere}
 .effect-preview-row strong{font-weight:650;color:#e8f0fb}
+
+/* Fixed navigation: brand and main tabs share a row, character tabs stay underneath */
+.top{position:sticky;top:0;z-index:30;display:block;height:auto;padding:0;background:#111925;border-bottom:1px solid #273144;box-shadow:0 6px 18px #0005}
+.top-primary{max-width:1240px;margin:0 auto;padding:0 24px;min-height:72px;display:flex;align-items:center;gap:26px;min-width:0}
+.top-primary .brand{flex:0 0 auto;white-space:nowrap}
+.top-primary .tabs{flex:1 1 auto;min-width:0;max-width:100%;border-bottom:0;align-self:stretch;align-items:center}
+.top-secondary{background:#141e2d;border-top:1px solid #2b394b}
+.top-secondary .subtabs{max-width:1240px;margin:0 auto;padding:0 24px;min-width:0;border-bottom:0}
+.main{padding-top:24px}
+@media(max-width:900px){.top-primary{gap:12px;padding:0 14px}.top-primary .brand-icon{width:34px;height:34px}.top-primary .brand strong{font-size:14px}.top-primary .brand small{font-size:9px}.top-primary .tabs .tab{padding:12px 10px}.top-secondary .subtabs{padding:0 12px}}
+@media(max-width:600px){.top{height:auto;display:block;padding:0;align-items:initial;flex-direction:initial}.top-primary{min-height:64px;gap:9px;padding:0 10px;flex-direction:row;align-items:center}.top-primary .brand{gap:6px}.top-primary .brand-icon{display:none}.top-primary .brand strong{font-size:12px}.top-primary .brand small{display:none}.top-primary .tabs{gap:2px;align-self:stretch}.top-secondary .subtabs{padding:0 8px;gap:2px}.top-secondary .subtabs button{padding:10px 8px}.main{padding-top:16px}}
