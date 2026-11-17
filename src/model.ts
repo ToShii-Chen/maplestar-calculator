@@ -38,7 +38,7 @@ export function calculate(c:Character,monster:Stats){
 
 /**
  * Equip unrestricted items first, then constrained items in ascending required sub-stat order.
- * Only worn equipment contributes fixed or potential bonuses. Unworn equipment never contributes.
+ * Only worn equipment contributes its non-potential fixed sub-stat; all equipment potentials are excluded, including equipped items.
  * Global buffs, skills, and set bonuses are assumed already active, matching the damage sheet.
  */
 export function checkSubRequirements(c:Character, monster:Stats){
@@ -50,7 +50,7 @@ export function checkSubRequirements(c:Character, monster:Stats){
  const equipped=c.gear.filter(g=>!requiredByGear.has(g.id));
  const blessing=Math.floor((c.mapleBlessing+1)/2)/100;
  const base=Math.floor(c.baseSub*(1+blessing)+0.1)+numeric(c.consumables.sub)+numeric(monster[c.subStat])+numeric(monster.all)+sum(c.skills.map(s=>s.sub))+sum(c.sets.map(s=>s.sub));
- const total=()=>Math.floor((base+sum(equipped.map(g=>numeric(g.sub)+numeric(g.potentialSub))))*(1+(numeric(monster.allPct)+sum(equipped.map(g=>numeric(g.potentialSubPct))))/100));
+ const total=()=>Math.floor((base+sum(equipped.map(g=>numeric(g.sub))))*(1+numeric(monster.allPct)/100));
  const failed:{gearId:string;name:string;required:number;available:number}[]=[];
  for(const {gear,required} of restrictions){
    const available=total();
