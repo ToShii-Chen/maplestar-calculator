@@ -125,3 +125,5 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .mileage-table .name-input{min-width:150px}
 .mileage-value{display:inline-block;min-width:110px}
 @media(max-width:720px){.lock-settings-layout{grid-template-columns:1fr}.set-picker-options{grid-template-columns:1fr}}
+
+.equipment-second-intro{margin-top:-12px}

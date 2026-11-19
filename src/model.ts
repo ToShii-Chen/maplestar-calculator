@@ -22,7 +22,7 @@ export function activeSetBonuses(equipped:Gear[]){
  });
 }
 export type Skill={name:string;attack:number;main:number;sub:number;attackPct:number};
-export const defaultSkills=():Skill[]=>[{name:'女神的祝福',attack:0,main:0,sub:0,attackPct:0},{name:'傳授',attack:0,main:0,sub:0,attackPct:0}];
+export const defaultSkills=():Skill[]=>[{name:'女皇的祝福',attack:0,main:0,sub:0,attackPct:0},{name:'傳授',attack:0,main:0,sub:0,attackPct:0}];
 export type Simple={attack:number;main:number;sub:number};
 export const zeroSimple=():Simple=>({attack:0,main:0,sub:0});
 export type Requirement={id:string;gearId:string;required:number};
