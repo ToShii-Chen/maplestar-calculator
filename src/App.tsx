@@ -1,6 +1,8 @@
 import {useEffect,useRef,useState} from 'react';
 import {Plus,BookOpen,Calculator,Download,Upload,RotateCcw,ChevronRight,Trash2} from 'lucide-react';
-import {blankMonster,calculate,combinedIed,defenseDamage,improvement,monsterFields,newCharacter,newData,type Character,type CharacterSubTab,type Data,type Gear,type Simple,type Skill,type Requirement,checkSubRequirements} from './model';
+import {mileageCatalog,netMileage,unitMesoPrice,type MileageItem,type CustomMileageItem} from './mileage';
+import {blankMonster,calculate,combinedIed,defenseDamage,improvement,monsterFields,newCharacter,newData,type Character,type CharacterSubTab,type Data,type Gear,type Simple,type Skill,type Requirement,type SetId,checkSubRequirements,activeSetBonuses,setDefinitions,setOptions,setName} from './model';
+import {mileageCatalog,netMileage,unitMesoPrice,type MileageItem,type CustomMileageItem} from './mileage';
 const storage='maplestar-calculator-v1';
 const num=(v:string)=>v===''?0:Number(v);
 const fmt=(n:number,d=0)=>n.toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -87,18 +89,37 @@ function DamagePage({c,monster,update}:{c:Character;monster:Data['monster'];upda
 }
 function EquipmentPage({c,update}:{c:Character;update:(c:Character)=>void}){
  const [expanded,setExpanded]=useState<Record<string,boolean>>({});
+ const [gearPicker,setGearPicker]=useState<string|null>(null);
  const toggle=(key:string)=>setExpanded(v=>({...v,[key]:!v[key]}));
  const button=(key:string)=><button type="button" className="ghost preview-toggle" onClick={()=>toggle(key)}>{expanded[key]?'關閉效果預覽':'展開效果預覽'}</button>;
  const change=(id:string,k:keyof Gear,v:number)=>update({...c,gear:c.gear.map(g=>g.id===id?{...g,[k]:v}:g)});
- const changeSet=(i:number,k:keyof Simple,v:number)=>update({...c,sets:Array.from({length:5},(_,j)=>j===i?{...(c.sets[j]??{attack:0,main:0,sub:0}),[k]:v}:(c.sets[j]??{attack:0,main:0,sub:0}))});
+ const changeSet=(i:number,k:keyof Simple,v:number)=>update({...c,sets:Array.from({length:3},(_,j)=>j===i?{...(c.sets[j]??{attack:0,main:0,sub:0}),[k]:v}:(c.sets[j]??{attack:0,main:0,sub:0}))});
+ const chooseSet=(id:string,setId:SetId)=>{update({...c,gear:c.gear.map(g=>g.id===id?{...g,setId}:g)});setGearPicker(null)};
+ const pickerGear=c.gear.find(g=>g.id===gearPicker);
  const groups=['武器類','防具類','飾品類','其他類'];
- return <><p className="intro">統計裝備數值，潛能數值需分開統計，用於後續鎖潛檢查</p>
- {groups.map(group=><Section key={group} title={group} action={button(group)}><div className="table-scroll"><table className="data-table editable gear-table"><thead><tr><th>裝備</th>{gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k,label],i)=><th key={k} className={`gear-${k.startsWith('potential')?'potential':'standard'} ${(k===(group==='武器類'?'potentialAttack':'potentialMain'))?'potential-start':''}`}>{roleLabel(c,label)}</th>)}</tr></thead><tbody>{c.gear.filter(g=>g.group===group).map(g=><tr key={g.id}><td className="sticky-name">{g.name}</td>{gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k])=>{const enabled=k==='potentialAttackPct'?(g.name==='武器'||g.name==='副武／標誌'):true;return <td key={k} className={`gear-${k.startsWith('potential')?'potential':'standard'} ${k===(group==='武器類'?'potentialAttack':'potentialMain')?'potential-start':''}`}>{enabled?<NumberInput value={Number(g[k])||0} percent={k.endsWith('Pct')} onChange={v=>change(g.id,k,v)}/>:<span className="na">—</span>}</td>})}</tr>)}</tbody></table></div>{expanded[group]&&<EffectPreview items={c.gear.filter(g=>g.group===group).map(g=>{
+ const autoSets=activeSetBonuses(c.gear);
+ return <><p className="intro">統計裝備數值，潛能數值需分開統計，用於後續鎖潛檢查。點選裝備名稱可設定所屬套裝。</p>
+ {groups.map(group=><Section key={group} title={group} action={button(group)}>
+ <div className="table-scroll"><table className="data-table editable gear-table"><thead><tr><th>裝備</th>{gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k,label])=><th key={k} className={`gear-${k.startsWith('potential')?'potential':'standard'} ${k===(group==='武器類'?'potentialAttack':'potentialMain')?'potential-start':''}`}>{roleLabel(c,label)}</th>)}</tr></thead>
+ <tbody>{c.gear.filter(g=>g.group===group).map(g=><tr key={g.id}><td className="sticky-name"><button type="button" className="gear-name-button" onClick={()=>setGearPicker(g.id)}>{g.name}<ChevronRight size={13}/></button>{g.setId&&g.setId!=='none'&&<div className="gear-set-caption">{setName(g.setId)}</div>}</td>
+ {gearKeys.filter(([k])=>group==='武器類'||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k])=>{const enabled=k==='potentialAttackPct'?(g.name==='武器'||g.name==='副武／標誌'):true;return <td key={k} className={`gear-${k.startsWith('potential')?'potential':'standard'} ${k===(group==='武器類'?'potentialAttack':'potentialMain')?'potential-start':''}`}>{enabled?<NumberInput value={Number(g[k])||0} percent={k.endsWith('Pct')} onChange={v=>change(g.id,k,v)}/>:<span className="na">—</span>}</td>})}</tr>)}</tbody></table></div>
+ {expanded[group]&&<EffectPreview items={c.gear.filter(g=>g.group===group).map(g=>{
  const basic=previewTerms(c,{attack:g.attack,main:g.main,sub:g.sub}).join(', ');
  const potential=previewTerms(c,{attack:g.potentialAttack,main:g.potentialMain,sub:g.potentialSub,attackPct:g.potentialAttackPct,mainPct:g.potentialMainPct,subPct:g.potentialSubPct}).join(', ');
  return {label:g.name,text:[basic,potential?`潛能: ${potential}`:''].filter(Boolean).join(', ')};
  })}/>}</Section>)}
- <Section title="套裝效果" action={button('sets')}><div className="table-scroll"><table className="data-table editable"><thead><tr><th>項目</th>{simpleLabels.map(([k,label])=><th key={k}>{roleLabel(c,label)}</th>)}</tr></thead><tbody>{Array.from({length:5},(_,i)=><tr key={i}><td>套裝效果{i+1}</td>{simpleLabels.map(([k])=><td key={k}><NumberInput value={c.sets[i]?.[k]??0} onChange={v=>changeSet(i,k,v)}/></td>)}</tr>)}</tbody></table></div>{expanded.sets&&<EffectPreview items={Array.from({length:5},(_,i)=>({label:`效果${i+1}`,text:previewTerms(c,c.sets[i]??{attack:0,main:0,sub:0}).join(', ')}))}/>}</Section></>
+ <Section title="額外套裝效果" action={button('sets')}>
+ <div className="table-scroll"><table className="data-table editable"><thead><tr><th>項目</th>{simpleLabels.map(([k,label])=><th key={k}>{roleLabel(c,label)}</th>)}</tr></thead>
+ <tbody>{Array.from({length:3},(_,i)=><tr key={i}><td>額外套裝效果{i+1}</td>{simpleLabels.map(([k])=><td key={k}><NumberInput value={c.sets[i]?.[k]??0} onChange={v=>changeSet(i,k,v)}/></td>)}</tr>)}</tbody></table></div>
+ {expanded.sets&&<EffectPreview items={Array.from({length:3},(_,i)=>({label:`額外套裝效果${i+1}`,text:previewTerms(c,c.sets[i]??{attack:0,main:0,sub:0}).join(', ')}))}/>}</Section>
+ <Section title="自動套裝效果預覽" description="依實際選擇的套裝與裝備件數自動判定；各達標件數的加成會累積。">
+ <div className="auto-set-grid">{autoSets.map(set=><div className="auto-set-card" key={set.id}><div className="auto-set-title"><strong>{set.name}</strong><span>{set.count} / {set.max} 件</span></div>
+ {set.levels.map(level=><div key={level.required} className={level.active?'set-level active':'set-level'}><span>{level.required} 件</span><span>{[level.attack?`攻擊+${level.attack}`:'',level.all?`全屬性+${level.all}`:''].filter(Boolean).join(', ')}</span><span>{level.active?'已觸發':'未觸發'}</span></div>)}
+ </div>)}</div></Section>
+ {pickerGear&&<div className="modal-backdrop"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="gear-set-title"><h2 id="gear-set-title">設定 {pickerGear.name} 的套裝</h2><p>請選擇所屬套裝。只有符合套裝部位的裝備可以選擇該套裝。</p>
+ <div className="set-picker-options">{setOptions(pickerGear).map(option=><button type="button" key={option} className={pickerGear.setId===option||(!pickerGear.setId&&option==='none')?'set-picker-choice selected':'set-picker-choice'} onClick={()=>chooseSet(pickerGear.id,option)}>{setName(option)}</button>)}</div>
+ <div className="modal-actions"><button className="ghost" onClick={()=>setGearPicker(null)}>取消</button></div></div></div>}
+ </>;
 }
 
 function SubStatPage({c,monster,update}:{c:Character;monster:Data['monster'];update:(c:Character)=>void}){
@@ -118,22 +139,60 @@ function SubStatPage({c,monster,update}:{c:Character;monster:Data['monster'];upd
  </tr>)}</tbody></table></div>
  <button className="ghost add-row" onClick={add}><Plus size={16}/>新增欄位</button>
  </Section>
- <Section title="鎖潛檢查額外設定"><div className="fields-grid two"><Field label={roleLabel(c,"透過秘藥或隊友效果獲得副屬性")} value={c.lockCheckExtraSub??0} onChange={v=>update({...c,lockCheckExtraSub:v})}/></div><p className="hint">勾選的套裝效果將在鎖潛檢查中停用，不影響傷害計算。</p>
- <div className="lock-set-toggles">{Array.from({length:5},(_,i)=><label key={i} className="lock-set-toggle">
- <input type="checkbox" checked={c.lockCheckDisabledSets?.[i]??true} onChange={e=>update({...c,lockCheckDisabledSets:Array.from({length:5},(_,j)=>j===i?e.target.checked:(c.lockCheckDisabledSets?.[j]??true))})}/>
- <span>套裝效果{i+1}{(c.sets[i]?.sub??0)!==0?' - '+statName(c,'sub')+'+'+c.sets[i].sub:' - 無'+statName(c,'sub')+'加成'}</span>
- </label>)}</div></Section>
+ <Section title="鎖潛檢查額外設定">
+ <div className="lock-settings-layout">
+ <div className="lock-settings-left"><Field label={roleLabel(c,"透過秘藥或隊友效果獲得副屬性")} value={c.lockCheckExtraSub??0} onChange={v=>update({...c,lockCheckExtraSub:v})}/>
+ <p className="hint">勾選代表停用對應的額外套裝效果，僅影響鎖潛檢查。</p>
+ <div className="lock-set-toggles">{Array.from({length:3},(_,i)=><label key={i} className="lock-set-toggle">
+ <input type="checkbox" checked={c.lockCheckDisabledSets?.[i]??true} onChange={e=>update({...c,lockCheckDisabledSets:Array.from({length:3},(_,j)=>j===i?e.target.checked:(c.lockCheckDisabledSets?.[j]??true))})}/>
+ <span>額外套裝效果{i+1}{(c.sets[i]?.sub??0)!==0?' - '+statName(c,'sub')+'+'+c.sets[i].sub:' - 無'+statName(c,'sub')+'加成'}</span>
+ </label>)}</div></div>
+ <div className="lock-auto-preview"><h3>已觸發的套裝效果</h3>
+ {result.activeSets.filter(set=>set.levels.some(level=>level.active)).length===0?<p className="hint">目前沒有觸發任何套裝效果</p>:
+ result.activeSets.filter(set=>set.levels.some(level=>level.active)).map(set=><div key={set.id} className="lock-set-detail"><strong>{set.name}（{set.count} 件）</strong>
+ {set.levels.filter(level=>level.active).map(level=><div key={level.required}>{level.required} 件：{[level.attack?`攻擊+${level.attack}`:'',level.all?`全屬性+${level.all}`:''].filter(Boolean).join(', ')}</div>)}
+ </div>)}</div></div></Section>
  <Section title="無法穿上的裝備"><div className="table-scroll"><table className="data-table"><thead><tr><th>無法穿上的裝備類別</th><th>{roleLabel(c,"需求副屬性")}</th><th>{roleLabel(c,"現有副屬性")}</th></tr></thead>
  <tbody>{result.failed.length?result.failed.map(f=><tr key={f.gearId}><td>{f.name}</td><td>{fmt(f.required)}</td><td className="negative">{fmt(f.available)}</td></tr>):<tr><td colSpan={3} className="empty-requirements">目前沒有無法穿上的裝備</td></tr>}</tbody>
  </table></div></Section></>
 }
 
+type MileageState={gross:number;mesos:number;custom:CustomMileageItem[]};
+const newMileage=():MileageState=>({gross:0,mesos:0,custom:[]});
+function loadMileage():MileageState{
+ try{const saved=JSON.parse(localStorage.getItem('maplestar-mileage-v1')||'null');
+  if(saved&&Array.isArray(saved.custom))return {gross:Math.max(0,Number(saved.gross)||0),mesos:Math.max(0,Number(saved.mesos)||0),custom:saved.custom.filter((item:CustomMileageItem)=>item&&typeof item.id==='string').map((item:CustomMileageItem)=>({id:item.id,name:String(item.name||''),price:Math.max(0,Number(item.price)||0),quantity:Math.max(1,Number(item.quantity)||1)}))};
+ }catch{}
+ return newMileage();
+}
+function MileagePage({value,set}:{value:MileageState;set:React.Dispatch<React.SetStateAction<MileageState>>}){
+ const update=(p:Partial<MileageState>)=>set(s=>({...s,...p}));
+ const fmtMeso=(item:MileageItem)=>{const amount=unitMesoPrice(item,value.gross,value.mesos);return amount===null?'—':fmt(amount)+' 楓幣'};
+ const add=()=>set(s=>({...s,custom:[...s.custom,{id:'mileage-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),name:'',price:0,quantity:1}]}));
+ const change=(id:string,p:Partial<CustomMileageItem>)=>set(s=>({...s,custom:s.custom.map(item=>item.id===id?{...item,...p}:item)}));
+ const remove=(id:string)=>set(s=>({...s,custom:s.custom.filter(item=>item.id!==id)}));
+ const head=<thead><tr><th>名稱</th><th>價格（里程）</th><th>數量</th><th>換算單位價值（楓幣）</th></tr></thead>;
+ return <><p className="intro">輸入交易前里程及購買所花費的楓幣，扣除 1% 手續費後，換算遊戲道具每單位的楓幣成本。</p>
+ <Section title="里程換算"><div className="fields-grid two"><Field label="當前里程（交易前）" value={value.gross} onChange={n=>update({gross:Math.max(0,n)})}/><Field label="購買里程花費的楓幣" value={value.mesos} onChange={n=>update({mesos:Math.max(0,n)})}/></div>
+ <div className="result-strip"><span>實際取得里程（扣除 1% 手續費）</span><strong>{fmt(netMileage(value.gross),1)}</strong></div>
+ {!(value.gross>0&&value.mesos>0)&&<p className="hint">填入兩個數值後，才會計算道具的楓幣單價。</p>}</Section>
+ {mileageCatalog.map(category=><Section key={category.group} title={category.group}><div className="table-scroll"><table className="data-table mileage-table">{head}
+ <tbody>{category.items.map(item=><tr key={item.name}><td>{item.name}</td><td>{fmt(item.price)}</td><td>{fmt(item.quantity)}</td><td>{fmtMeso(item)}</td></tr>)}</tbody></table></div></Section>)}
+ <Section title="額外" description="自訂項目與輸入的價格、數量會儲存在此瀏覽器；使用「還原至預設」時也會保留。">
+ <div className="table-scroll"><table className="data-table editable mileage-table">{head}<tbody>{value.custom.map(item=><tr key={item.id}>
+ <td><input className="name-input" aria-label="額外項目名稱" placeholder="項目名稱" maxLength={40} value={item.name} onChange={e=>change(item.id,{name:e.target.value})}/></td>
+ <td><NumberInput value={item.price} onChange={n=>change(item.id,{price:Math.max(0,n)})}/></td><td><NumberInput value={item.quantity} onChange={n=>change(item.id,{quantity:Math.max(1,Math.floor(n))})}/></td>
+ <td><span className="mileage-value">{fmtMeso(item)}</span><button className="icon-button" title="移除此項" onClick={()=>remove(item.id)}><Trash2 size={15}/></button></td></tr>)}
+ </tbody></table></div><button className="ghost add-row" onClick={add}><Plus size={16}/>新增自訂項目</button></Section></>;
+}
+
 function App(){
  const [data,setData]=useState<Data>(load);
+ const [mileage,setMileage]=useState<MileageState>(loadMileage);
  const [tab,setTab]=useState<string>(()=>{
   try {
    const saved=localStorage.getItem('maplestar-last-view');
-   if(saved==='monster'||saved==='ied')return saved;
+   if(saved==='monster'||saved==='ied'||saved==='mileage')return saved;
    const state=JSON.parse(localStorage.getItem(storage)||'null') as Data|null;
    if(state?.characters?.some(c=>c.id===saved))return saved??'monster';
   }catch{}
@@ -153,10 +212,11 @@ function App(){
  const [newName,setNewName]=useState('');
  const [notice,setNotice]=useState('');
  useEffect(()=>{localStorage.setItem(storage,JSON.stringify(data))},[data]);
+ useEffect(()=>{localStorage.setItem('maplestar-mileage-v1',JSON.stringify(mileage))},[mileage]);
  const current=data.characters.find(c=>c.id===tab);
  useEffect(()=>{try{localStorage.setItem('maplestar-last-view',tab)}catch{}},[tab]);
  useEffect(()=>{
-  const key=tab==='monster'||tab==='ied'?tab:tab+'|'+sub;
+  const key=tab==='monster'||tab==='ied'||tab==='mileage'?tab:tab+'|'+sub;
   const scrollKey='maplestar-view-scroll-'+key;
   let position=0;
   try{position=Number(localStorage.getItem(scrollKey)||0)||0}catch{}
@@ -173,7 +233,7 @@ function App(){
  },[tab,sub]);
  const updateCharacter=(c:Character)=>setData(d=>({...d,characters:d.characters.map(x=>x.id===c.id?c:x)}));
  const selectCharacter=(c:Character)=>{setTab(c.id);setLastCharacter(c.id);setSub(c.lastSubTab??'settings')};
- const openCalculator=()=>{if(tab==='ied')setTab('monster')};
+ const openCalculator=()=>{if(tab==='ied'||tab==='mileage')setTab('monster')};
  useEffect(()=>{try{if(lastCharacter)localStorage.setItem('maplestar-last-character',lastCharacter)}catch{}},[lastCharacter]);
  const selectSub=(next:CharacterSubTab)=>{setSub(next);if(current)setData(d=>({...d,characters:d.characters.map(x=>x.id===current.id?{...x,lastSubTab:next}:x)}))};
  const add=()=>{const id=`character-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;setData(d=>({...d,characters:[...d.characters,newCharacter(id)]}));setTab(id);setLastCharacter(id);setSub('settings')};
@@ -188,13 +248,14 @@ function App(){
  const importCharacter=async(f?:File)=>{if(!f)return;try{const obj=JSON.parse(await f.text());const c=obj?.format==='maplestar-character'&&obj.version===1?obj.character:null;
  if(!c||typeof c!=='object'||typeof c.name!=='string'||!c.name.trim()||!Array.isArray(c.gear)||!Array.isArray(c.skills)||!Array.isArray(c.sets)||!c.extra||!c.consumables||!['str','dex','int','luk'].includes(c.mainStat)||!['str','dex','int','luk'].includes(c.subStat)||typeof c.weaponCoefficient!=='number')throw Error('格式不正確');
  const id='character-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
- const imported:Character={...c,id,name:c.name.trim().slice(0,10),sets:Array.from({length:5},(_,i)=>c.sets[i]??{attack:0,main:0,sub:0}),lockCheckDisabledSets:Array.from({length:5},(_,i)=>Boolean(c.lockCheckDisabledSets?.[i]))};
+ const imported:Character={...c,id,name:c.name.trim().slice(0,10),sets:Array.from({length:3},(_,i)=>c.sets[i]??{attack:0,main:0,sub:0}),lockCheckDisabledSets:Array.from({length:3},(_,i)=>c.lockCheckDisabledSets?.[i]??true)};
  setData(d=>({...d,characters:[...d.characters,imported]}));setTab(id);setLastCharacter(id);setSub('settings');setNotice('已匯入角色欄位');
  }catch{setNotice('匯入失敗：請選擇「匯出json」產生的角色檔案')}};
- const resetCurrent=()=>{const label=tab==='monster'?'怪物圖鑑':tab==='ied'?'無視防禦計算':sub==='settings'?'角色設定':sub==='skills'?'技能設定':sub==='gear'?'裝備':sub==='subcheck'?'鎖潛檢查':'傷害計算';
+ const resetCurrent=()=>{const label=tab==='monster'?'怪物圖鑑':tab==='ied'?'無視防禦計算':tab==='mileage'?'里程購買計算機':sub==='settings'?'角色設定':sub==='skills'?'技能設定':sub==='gear'?'裝備':sub==='subcheck'?'鎖潛檢查':'傷害計算';
  if(!window.confirm('確定將「'+label+'」還原至預設？只影響目前頁面的資料。'))return;
  if(tab==='monster'){setData(d=>({...d,monster:{...blankMonster}}));return}
  if(tab==='ied'){setData(d=>({...d,ied:Array(7).fill(0),oldIed:0,newIed:0}));return}
+ if(tab==='mileage'){setMileage(s=>({...s,gross:0,mesos:0}));return}
  if(!current)return;const defaults=newCharacter(current.id,current.name);
  if(sub==='settings')updateCharacter({...current,mainStat:defaults.mainStat,subStat:defaults.subStat,mastery:defaults.mastery,weaponCoefficient:defaults.weaponCoefficient});
  if(sub==='skills')updateCharacter({...current,skills:defaults.skills});
@@ -205,16 +266,17 @@ function App(){
  return <div className="app"><header className="top">
  <div className="top-primary"><div className="brand"><div className="brand-icon"><Calculator size={21}/></div><div><strong>楓星計算工具</strong><small>MapleStar Toolkit</small></div></div>
  <nav className="tabs" aria-label="主功能頁籤">
- <button className={tab!=='ied'?'tab active':'tab'} onClick={openCalculator}><Calculator size={16}/>傷害計算機</button>
- <button className={tab==='ied'?'tab active':'tab'} onClick={()=>setTab('ied')}><Calculator size={16}/>無視防禦計算</button></nav></div>
- {tab!=='ied'&&<><div className="top-secondary"><div className="character-nav">
+ <button className={tab!=='ied'&&tab!=='mileage'?'tab active':'tab'} onClick={openCalculator}><Calculator size={16}/>傷害計算機</button>
+ <button className={tab==='ied'?'tab active':'tab'} onClick={()=>setTab('ied')}><Calculator size={16}/>無視防禦計算</button>
+ <button className={tab==='mileage'?'tab active':'tab'} onClick={()=>setTab('mileage')}><Calculator size={16}/>里程購買計算機</button></nav></div>
+ {tab!=='ied'&&tab!=='mileage'&&<><div className="top-secondary"><div className="character-nav">
  <nav className="tabs character-tabs" aria-label="角色欄位"><button className={tab==='monster'?'tab active':'tab'} onClick={()=>setTab('monster')}><BookOpen size={16}/>怪物圖鑑</button>{data.characters.map(c=><button key={c.id} className={tab===c.id?'tab active':'tab'} onClick={()=>selectCharacter(c)} title={c.name}>{c.name}</button>)}<button className="tab add-tab" onClick={add} aria-label="新增欄位"><Plus size={19}/></button></nav>
  <label className="tab import-tab"><Upload size={16}/>匯入json<input type="file" accept=".json,application/json" hidden onChange={e=>{void importCharacter(e.target.files?.[0]);e.target.value=''}}/></label>
  </div></div>
  {current&&<div className="top-tertiary"><div className="subtabs"><button className={sub==='settings'?'selected':''} onClick={()=>selectSub('settings')}>角色設定</button><button className={sub==='skills'?'selected':''} onClick={()=>selectSub('skills')}>技能設定</button><button className={sub==='gear'?'selected':''} onClick={()=>selectSub('gear')}>裝備</button><button className={sub==='damage'?'selected':''} onClick={()=>selectSub('damage')}>傷害計算</button><button className={sub==='subcheck'?'selected':''} onClick={()=>selectSub('subcheck')}>鎖潛檢查</button><span className="subtab-spacer"/><button onClick={exportCharacter}><Download size={15}/>匯出json</button><button onClick={()=>{setNewName(current.name);setRename(true)}}>重新命名 <ChevronRight size={15}/></button><button className="danger-tab" onClick={remove}><Trash2 size={15}/>刪除該欄位</button></div></div>}</>}
  </header>
  <main className="main">
- {tab==='monster'?<MonsterPage data={data} set={setData}/>:tab==='ied'?<IedPage data={data} set={setData}/>:current?<>
+ {tab==='monster'?<MonsterPage data={data} set={setData}/>:tab==='ied'?<IedPage data={data} set={setData}/>:tab==='mileage'?<MileagePage value={mileage} set={setMileage}/>:current?<>
  {sub==='settings'?<CharacterSettings c={current} update={updateCharacter}/>:sub==='skills'?<SkillSettings c={current} update={updateCharacter}/>:sub==='gear'?<EquipmentPage c={current} update={updateCharacter}/>:sub==='damage'?<DamagePage c={current} monster={data.monster} update={updateCharacter}/>:<SubStatPage c={current} monster={data.monster} update={updateCharacter}/>}</>:null}
  <footer><span>作者: Satoshi</span><button onClick={resetCurrent}><RotateCcw size={14}/>還原至預設</button></footer></main>
  {rename&&current&&<div className="modal-backdrop"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="rename-title" onClick={e=>e.stopPropagation()}><h2 id="rename-title">重新命名欄位</h2><p>名稱最多 10 個字。</p><input autoFocus maxLength={10} value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&newName.trim()){updateCharacter({...current,name:newName.trim()});setRename(false)}}}/><div className="modal-actions"><button className="ghost" onClick={()=>setRename(false)}>取消</button><button className="solid" disabled={!newName.trim()} onClick={()=>{updateCharacter({...current,name:newName.trim()});setRename(false)}}>儲存名稱</button></div></div></div>}
