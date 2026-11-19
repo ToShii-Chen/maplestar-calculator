@@ -112,8 +112,8 @@ function EquipmentPage({c,update}:{c:Character;update:(c:Character)=>void}){
  <tbody>{Array.from({length:3},(_,i)=><tr key={i}><td>額外套裝效果{i+1}</td>{simpleLabels.map(([k])=><td key={k}><NumberInput value={c.sets[i]?.[k]??0} onChange={v=>changeSet(i,k,v)}/></td>)}</tr>)}</tbody></table></div>
  {expanded.sets&&<EffectPreview items={Array.from({length:3},(_,i)=>({label:`額外套裝效果${i+1}`,text:previewTerms(c,c.sets[i]??{attack:0,main:0,sub:0}).join(', ')}))}/>}</Section>
  <Section title="自動套裝效果預覽" description="依實際選擇的套裝與裝備件數自動判定；各達標件數的加成會累積。">
- <div className="auto-set-grid">{autoSets.map(set=><div className="auto-set-card" key={set.id}><div className="auto-set-title"><strong>{set.name}</strong><span>{set.count} / {set.max} 件</span></div>
- {set.levels.map(level=><div key={level.required} className={level.active?'set-level active':'set-level'}><span>{level.required} 件</span><span>{[level.attack?`攻擊+${level.attack}`:'',level.all?`全屬性+${level.all}`:''].filter(Boolean).join(', ')}</span><span>{level.active?'已觸發':'未觸發'}</span></div>)}
+ <div className="auto-set-grid">{autoSets.filter(set=>set.count>0).map(set=><div className="auto-set-card" key={set.id}><div className="auto-set-title"><strong>{set.name}</strong><span>{set.count} / {set.max} 件</span></div>
+ {set.levels.filter(level=>set.count<set.levels[0].required||level.active).map(level=><div key={level.required} className={level.active?'set-level active':'set-level'}><span>{level.required} 件</span><span>{[level.attack?`攻擊+${level.attack}`:'',level.all?`全屬性+${level.all}`:''].filter(Boolean).join(', ')}</span><span>{level.active?'已觸發':'未觸發'}</span></div>)}
  </div>)}</div></Section>
  {pickerGear&&<div className="modal-backdrop"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="gear-set-title"><h2 id="gear-set-title">設定 {pickerGear.name} 的套裝</h2><p>請選擇所屬套裝。只有符合套裝部位的裝備可以選擇該套裝。</p>
  <div className="set-picker-options">{setOptions(pickerGear).map(option=><button type="button" key={option} className={pickerGear.setId===option||(!pickerGear.setId&&option==='none')?'set-picker-choice selected':'set-picker-choice'} onClick={()=>chooseSet(pickerGear.id,option)}>{setName(option)}</button>)}</div>
@@ -157,10 +157,19 @@ function SubStatPage({c,monster,update}:{c:Character;monster:Data['monster'];upd
 }
 
 type MileageState={gross:number;mesos:number;custom:CustomMileageItem[]};
-const newMileage=():MileageState=>({gross:0,mesos:0,custom:[]});
+const newMileage=():MileageState=>({gross:0,mesos:1,custom:[]});
 function loadMileage():MileageState{
- try{const saved=JSON.parse(localStorage.getItem('maplestar-mileage-v1')||'null');
-  if(saved&&Array.isArray(saved.custom))return {gross:Math.max(0,Number(saved.gross)||0),mesos:Math.max(0,Number(saved.mesos)||0),custom:saved.custom.filter((item:CustomMileageItem)=>item&&typeof item.id==='string').map((item:CustomMileageItem)=>({id:item.id,name:String(item.name||''),price:Math.max(0,Number(item.price)||0),quantity:Math.max(1,Number(item.quantity)||1)}))};
+ try{const saved=JSON.parse(localStorage.getItem('maplestar-mileage-v2')||'null');
+  if(saved&&Array.isArray(saved.custom))return {gross:Math.max(0,Number(saved.gross)||0),mesos:Math.max(0,Number(saved.mesos) || 0),custom:saved.custom.filter((item:CustomMileageItem)=>item&&typeof item.id==='string').map((item:CustomMileageItem)=>({id:item.id,name:String(item.name||''),price:Math.max(0,Number(item.price)||0),quantity:Math.max(1,Number(item.quantity)||1)}))};
+ }catch{}
+ // Migrate the previous version, where the second input was a raw mesos amount.
+ try{
+  const legacy=JSON.parse(localStorage.getItem('maplestar-mileage-v1')||'null');
+  if(legacy&&Array.isArray(legacy.custom))return {
+   gross:Math.max(0,Number(legacy.gross)||0),
+   mesos:Number(legacy.mesos)>0?Number(legacy.mesos)/1000000:1,
+   custom:legacy.custom.filter((item:CustomMileageItem)=>item&&typeof item.id==='string').map((item:CustomMileageItem)=>({id:item.id,name:String(item.name||''),price:Math.max(0,Number(item.price)||0),quantity:Math.max(1,Number(item.quantity)||1)}))
+  };
  }catch{}
  return newMileage();
 }
@@ -171,8 +180,8 @@ function MileagePage({value,set}:{value:MileageState;set:React.Dispatch<React.Se
  const change=(id:string,p:Partial<CustomMileageItem>)=>set(s=>({...s,custom:s.custom.map(item=>item.id===id?{...item,...p}:item)}));
  const remove=(id:string)=>set(s=>({...s,custom:s.custom.filter(item=>item.id!==id)}));
  const head=<thead><tr><th>名稱</th><th>價格（里程）</th><th>數量</th><th>換算單位價值（楓幣）</th></tr></thead>;
- return <><p className="intro">輸入交易前里程及購買所花費的楓幣，扣除 1% 手續費後，換算遊戲道具每單位的楓幣成本。</p>
- <Section title="里程換算"><div className="fields-grid two"><Field label="當前里程（交易前）" value={value.gross} onChange={n=>update({gross:Math.max(0,n)})}/><Field label="購買里程花費的楓幣" value={value.mesos} onChange={n=>update({mesos:Math.max(0,n)})}/></div>
+ return <><p className="intro">計算里程購買之後</p>
+ <Section title="里程換算"><div className="fields-grid two"><Field label="購買里程" value={value.gross} onChange={n=>update({gross:Math.max(0,n)})}/><Field label="購買數量 (百萬)" value={value.mesos} onChange={n=>update({mesos:Math.max(0,n)})}/></div>
  <div className="result-strip"><span>實際取得里程（扣除 1% 手續費）</span><strong>{fmt(netMileage(value.gross),1)}</strong></div>
  {!(value.gross>0&&value.mesos>0)&&<p className="hint">填入兩個數值後，才會計算道具的楓幣單價。</p>}</Section>
  {mileageCatalog.map(category=><Section key={category.group} title={category.group}><div className="table-scroll"><table className="data-table mileage-table">{head}
@@ -207,13 +216,27 @@ function App(){
  });
  const initialScroll=useRef(true);
  const [lastCharacter,setLastCharacter]=useState<string>(()=>{try{return localStorage.getItem('maplestar-last-character')||''}catch{return ''}});
+ const [lastCalculator,setLastCalculator]=useState<string>(()=>{
+  try{
+   const saved=localStorage.getItem('maplestar-last-calculator-view')||localStorage.getItem('maplestar-last-view');
+   const stored=JSON.parse(localStorage.getItem(storage)||'null') as Data|null;
+   if(saved==='monster'||stored?.characters?.some(c=>c.id===saved))return saved!;
+  }catch{}
+  return 'monster';
+ });
  const [rename,setRename]=useState(false);
  const [newName,setNewName]=useState('');
  const [notice,setNotice]=useState('');
  useEffect(()=>{localStorage.setItem(storage,JSON.stringify(data))},[data]);
- useEffect(()=>{localStorage.setItem('maplestar-mileage-v1',JSON.stringify(mileage))},[mileage]);
+ useEffect(()=>{localStorage.setItem('maplestar-mileage-v2',JSON.stringify(mileage))},[mileage]);
  const current=data.characters.find(c=>c.id===tab);
  useEffect(()=>{try{localStorage.setItem('maplestar-last-view',tab)}catch{}},[tab]);
+ useEffect(()=>{
+  if(tab==='monster'||data.characters.some(c=>c.id===tab)){
+   setLastCalculator(tab);
+   try{localStorage.setItem('maplestar-last-calculator-view',tab)}catch{}
+  }
+ },[tab,data.characters]);
  useEffect(()=>{
   const key=tab==='monster'||tab==='ied'||tab==='mileage'?tab:tab+'|'+sub;
   const scrollKey='maplestar-view-scroll-'+key;
@@ -232,7 +255,14 @@ function App(){
  },[tab,sub]);
  const updateCharacter=(c:Character)=>setData(d=>({...d,characters:d.characters.map(x=>x.id===c.id?c:x)}));
  const selectCharacter=(c:Character)=>{setTab(c.id);setLastCharacter(c.id);setSub(c.lastSubTab??'settings')};
- const openCalculator=()=>{if(tab==='ied'||tab==='mileage')setTab('monster')};
+ const openCalculator=()=>{
+  if(tab==='ied'||tab==='mileage'){
+   const target=lastCalculator==='monster'||data.characters.some(c=>c.id===lastCalculator)?lastCalculator:'monster';
+   setTab(target);
+   const character=data.characters.find(c=>c.id===target);
+   if(character)setSub(character.lastSubTab??'settings');
+  }
+ };
  useEffect(()=>{try{if(lastCharacter)localStorage.setItem('maplestar-last-character',lastCharacter)}catch{}},[lastCharacter]);
  const selectSub=(next:CharacterSubTab)=>{setSub(next);if(current)setData(d=>({...d,characters:d.characters.map(x=>x.id===current.id?{...x,lastSubTab:next}:x)}))};
  const add=()=>{const id=`character-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;setData(d=>({...d,characters:[...d.characters,newCharacter(id)]}));setTab(id);setLastCharacter(id);setSub('settings')};
@@ -254,7 +284,7 @@ function App(){
  if(!window.confirm('確定將「'+label+'」還原至預設？只影響目前頁面的資料。'))return;
  if(tab==='monster'){setData(d=>({...d,monster:{...blankMonster}}));return}
  if(tab==='ied'){setData(d=>({...d,ied:Array(7).fill(0),oldIed:0,newIed:0}));return}
- if(tab==='mileage'){setMileage(s=>({...s,gross:0,mesos:0}));return}
+ if(tab==='mileage'){setMileage(s=>({...s,gross:0,mesos:1}));return}
  if(!current)return;const defaults=newCharacter(current.id,current.name);
  if(sub==='settings')updateCharacter({...current,mainStat:defaults.mainStat,subStat:defaults.subStat,mastery:defaults.mastery,weaponCoefficient:defaults.weaponCoefficient});
  if(sub==='skills')updateCharacter({...current,skills:defaults.skills});
