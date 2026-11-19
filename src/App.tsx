@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import {Plus,BookOpen,Calculator,Download,Upload,RotateCcw,ChevronRight,Trash2} from 'lucide-react';
-import {blankMonster,calculate,combinedIed,defenseDamage,improvement,monsterFields,newCharacter,newData,type Character,type CharacterSubTab,type Data,type Gear,type Simple,type Skill,type Requirement,type SetId,checkSubRequirements,activeSetBonuses,setDefinitions,setOptions,setName} from './model';
+import {blankMonster,calculate,combinedIed,defenseDamage,improvement,monsterFields,newCharacter,newData,type Character,type CharacterSubTab,type Data,type Gear,type Simple,type Skill,type Requirement,type SetId,checkSubRequirements,activeSetBonuses,setDefinitions,setOptions,setName,simulateEquipment} from './model';
 import {mileageCatalog,netMileage,unitMesoPrice,type MileageItem,type CustomMileageItem} from './mileage';
 const storage='maplestar-calculator-v1';
 const num=(v:string)=>v===''?0:Number(v);
@@ -43,11 +43,12 @@ function CharacterSettings({c,update}:{c:Character;update:(c:Character)=>void}){
  <Section title="武器係數參考"><div className="weapon-reference">{weaponGroups.map(([group,items])=><div key={group} className="weapon-group"><h3>{group}</h3>{items.map(([name,coefficient])=><div className="weapon-row" key={name}><span>{name}</span><strong>{coefficient.toFixed(2)}</strong></div>)}</div>)}</div><p className="hint">參考常見舊版楓之谷數值；楓星若有不同設定，請以上方可編輯的武器係數為準。</p></Section></>
 }
 const statName=(c:Character,key:'main'|'sub')=>statOptions.find(([id])=>id===(key==='main'?c.mainStat:c.subStat))?.[1]??(key==='main'?'主屬性':'副屬性');
-const roleLabel=(c:Character,label:string)=>label.replace(/主屬性|副屬性/g,match=>match==='主屬性'?statName(c,'main'):statName(c,'sub'));
+const roleLabel=(c:Character,label:string)=>label.replace(/主屬性|副屬性/g,match=>match==='主屬性'?statName(c,'main'):statName(c,'sub')).replace(/攻擊力/g,c.mainStat==='int'?'魔力':'攻擊力');
+const attackName=(c:Character)=>c.mainStat==='int'?'魔力':'攻擊';
 const previewTerms=(c:Character,v:Partial<Record<'attack'|'main'|'sub'|'attackPct'|'mainPct'|'subPct',number>>)=>{
  const labels:[keyof typeof v,string,boolean][]=[
- ['attack','攻擊',false],['main',statName(c,'main'),false],['sub',statName(c,'sub'),false],
- ['attackPct','攻擊',true],['mainPct',statName(c,'main'),true],['subPct',statName(c,'sub'),true]];
+ ['attack',attackName(c),false],['main',statName(c,'main'),false],['sub',statName(c,'sub'),false],
+ ['attackPct',attackName(c),true],['mainPct',statName(c,'main'),true],['subPct',statName(c,'sub'),true]];
  return labels.flatMap(([key,label,pct])=>{const value=v[key]??0;return Number.isFinite(value)&&value!==0?[`${label}+${value}${pct?'%':''}`]:[]});
 };
 function EffectPreview({items}:{items:{label:string;text:string}[]}){
@@ -60,7 +61,72 @@ function SkillSettings({c,update}:{c:Character;update:(c:Character)=>void}){
  const remove=(i:number)=>update({...c,skills:c.skills.filter((_,j)=>j!==i)});
  const [showPreview,setShowPreview]=useState(false);
  const previewItems=c.skills.map((skill,i)=>({label:skill.name.trim()||`技能${i+1}`,text:previewTerms(c,skill).join(', ')}));
- return <><p className="intro">僅統計除楓葉祝福以外的自身技能，不要包含隊友與天氣、藥的效果。</p><Section title="技能加成" action={<button className="ghost preview-toggle" type="button" onClick={()=>setShowPreview(v=>!v)}>{showPreview?'關閉效果預覽':'展開效果預覽'}</button>}><div className="table-scroll"><table className="data-table editable"><thead><tr><th>技能</th><th>攻擊力</th><th>{statName(c,'main')}</th><th>{statName(c,'sub')}</th><th>攻擊力(%)</th><th></th></tr></thead><tbody>{c.skills.map((s,i)=><tr key={i}><td><input className="name-input" value={s.name} aria-label={`技能${i+1}名稱`} placeholder="技能名稱" onChange={e=>change(i,'name',e.target.value)}/></td>{(['attack','main','sub','attackPct'] as const).map(k=><td key={k}><NumberInput value={s[k]} percent={k==='attackPct'} onChange={v=>change(i,k,v)}/></td>)}<td><button className="icon-button" title="移除此技能" aria-label="移除此技能" disabled={c.skills.length<=1} onClick={()=>remove(i)}><Trash2 size={16}/></button></td></tr>)}</tbody></table></div><button className="ghost add-row" onClick={add}><Plus size={16}/>新增技能</button>{showPreview&&<EffectPreview items={previewItems}/>}</Section></>
+ return <><p className="intro">僅統計除楓葉祝福以外的自身技能，不要包含隊友與天氣、藥的效果。</p><Section title="技能加成" action={<button className="ghost preview-toggle" type="button" onClick={()=>setShowPreview(v=>!v)}>{showPreview?'關閉效果預覽':'展開效果預覽'}</button>}><div className="table-scroll"><table className="data-table editable"><thead><tr><th>技能</th><th>{roleLabel(c,'攻擊力')}</th><th>{statName(c,'main')}</th><th>{statName(c,'sub')}</th><th>{roleLabel(c,'攻擊力(%)')}</th><th></th></tr></thead><tbody>{c.skills.map((s,i)=><tr key={i}><td><input className="name-input" value={s.name} aria-label={`技能${i+1}名稱`} placeholder="技能名稱" onChange={e=>change(i,'name',e.target.value)}/></td>{(['attack','main','sub','attackPct'] as const).map(k=><td key={k}><NumberInput value={s[k]} percent={k==='attackPct'} onChange={v=>change(i,k,v)}/></td>)}<td><button className="icon-button" title="移除此技能" aria-label="移除此技能" disabled={c.skills.length<=1} onClick={()=>remove(i)}><Trash2 size={16}/></button></td></tr>)}</tbody></table></div><button className="ghost add-row" onClick={add}><Plus size={16}/>新增技能</button>{showPreview&&<EffectPreview items={previewItems}/>}</Section></>
+}
+
+
+function GearSimulation({c,monster,update}:{c:Character;monster:Data['monster'];update:(c:Character)=>void}){
+ const [selectedId,setSelectedId]=useState('');
+ const [pickerId,setPickerId]=useState<string|null>(null);
+ const [showPreview,setShowPreview]=useState(false);
+ const entries=c.simulatedGear??[];
+ const ids=new Set(entries.map(g=>g.id));
+ const remaining=c.gear.filter(g=>!ids.has(g.id));
+ const result=simulateEquipment(c,monster);
+ const deltaPct=result.original.range>0?(result.changed.range/result.original.range-1)*100:null;
+ const change=(id:string,key:keyof Gear,value:number)=>update({...c,simulatedGear:entries.map(g=>g.id===id?{...g,[key]:value}:g)});
+ const chooseSet=(id:string,setId:SetId)=>{update({...c,simulatedGear:entries.map(g=>g.id===id?{...g,setId}:g)});setPickerId(null)};
+ const add=()=>{const gear=c.gear.find(g=>g.id===selectedId);if(!gear||ids.has(gear.id))return;update({...c,simulatedGear:[...entries,{...gear}]});setSelectedId('')};
+ const remove=(id:string)=>update({...c,simulatedGear:entries.filter(g=>g.id!==id)});
+ const pickerGear=entries.find(g=>g.id===pickerId);
+ const enhanced=(groups:string[])=>entries.filter(g=>groups.includes(g.group));
+ const metric=(label:string,value:number)=><div className="metric" key={label}><span>{roleLabel(c,label)}</span><strong>{fmt(value)}</strong></div>;
+ const setChanges=setDefinitions.flatMap(def=>{
+  const old=result.oldSets.find(s=>s.id===def.id);
+  const next=result.newSets.find(s=>s.id===def.id);
+  return def.bonuses.flatMap(b=>{
+   const before=!!old?.levels.find(x=>x.required===b.required)?.active;
+   const after=!!next?.levels.find(x=>x.required===b.required)?.active;
+   if(before===after)return [];
+   const text=[b.attack?`${attackName(c)}+${b.attack}`:'',b.all?`全屬性+${b.all}`:''].filter(Boolean).join(', ');
+   return [{key:`${def.id}-${b.required}`,text:`${def.name}${b.required}件套效果: ${text}`,kind:after?'gained':'lost'}];
+  });
+ });
+ const signed=(label:string,value:number,suffix='')=>value===0?'':`${label}${value>0?'+':''}${value}${suffix}`;
+ const basic=[signed(attackName(c),result.fixed.attack),signed(statName(c,'main'),result.fixed.main),signed(statName(c,'sub'),result.fixed.sub)].filter(Boolean).join(', ');
+ const potential=[
+  signed(attackName(c),result.potential.attack),signed(statName(c,'main'),result.potential.main),signed(statName(c,'sub'),result.potential.sub),
+  signed(attackName(c),result.potential.attackPct,'%'),signed(statName(c,'main'),result.potential.mainPct,'%'),signed(statName(c,'sub'),result.potential.subPct,'%')
+ ].filter(Boolean).join(', ');
+ const renderRows=(items:Gear[],weapons:boolean)=><div className="table-scroll"><table className="data-table editable gear-table simulation-table">
+ <thead><tr><th>裝備</th>{gearKeys.filter(([k])=>weapons||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k,label])=><th key={k} className={`gear-${k.startsWith('potential')?'potential':'standard'} ${k===(weapons?'potentialAttack':'potentialMain')?'potential-start':''}`}>{roleLabel(c,label)}</th>)}<th>操作</th></tr></thead>
+ <tbody>{items.map(g=><tr key={g.id}><td className="sticky-name"><button type="button" className="gear-name-button" onClick={()=>setPickerId(g.id)}>{g.name}<ChevronRight size={13}/></button>{g.setId&&g.setId!=='none'&&<div className="gear-set-caption">{setName(g.setId)}</div>}</td>
+ {gearKeys.filter(([k])=>weapons||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k])=>{
+  const enabled=k!=='potentialAttackPct'||g.name==='武器'||g.name==='副武／標誌';
+  return <td key={k} className={`gear-${k.startsWith('potential')?'potential':'standard'} ${k===(weapons?'potentialAttack':'potentialMain')?'potential-start':''}`}>{enabled?<NumberInput value={Number(g[k])||0} percent={k.endsWith('Pct')} onChange={n=>change(g.id,k,n)}/>:<span className="na">—</span>}</td>;
+ })}
+ <td><button type="button" className="icon-button simulation-remove" aria-label={`刪除${g.name}試算`} onClick={()=>remove(g.id)}><Trash2 size={16}/></button></td></tr>)}</tbody></table></div>;
+ return <Section title="模擬變更裝備" description="選擇原有裝備欄位建立替換試算，修改不會覆寫裝備頁面的數值。">
+ <div className="simulation-add"><select aria-label="選擇裝備類別" value={selectedId} onChange={e=>setSelectedId(e.target.value)}>
+ <option value="">選擇要變更的裝備類別</option>{remaining.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+ </select><button type="button" className="solid" disabled={!selectedId} onClick={add}><Plus size={16}/>添加</button></div>
+ {entries.length>0&&<>
+ <div className="simulation-subsection"><h3>武器類</h3>{enhanced(['武器類']).length?renderRows(enhanced(['武器類']),true):<p className="hint">尚未添加武器類</p>}</div>
+ <div className="simulation-subsection"><h3>非武器類</h3>{enhanced(['防具類','飾品類','其他類']).length?renderRows(enhanced(['防具類','飾品類','其他類']),false):<p className="hint">尚未添加非武器類</p>}</div>
+ <div className="simulation-subsection"><h3>變更後差異比較</h3>
+ <div className="metrics">{metric('最終攻擊力',result.changed.finalAttack)}{metric('最終主屬性',result.changed.finalMain)}{metric('最終副屬性',result.changed.finalSub)}</div>
+ <div className="result-strip"><span>變更後表攻上限</span><strong className={deltaPct===null?'':deltaPct>0?'positive':deltaPct<0?'negative':''}>{fmt(result.changed.range)} ({deltaPct===null?'無法計算':`${deltaPct>0?'+':''}${fmt(deltaPct,1)}%`})</strong></div>
+ <button type="button" className="ghost preview-toggle simulation-preview-button" onClick={()=>setShowPreview(x=>!x)}>{showPreview?'關閉效果預覽':'展開效果預覽'}</button>
+ {showPreview&&<div className="simulation-diff">
+ <div><h4>移除的套裝效果</h4>{setChanges.filter(x=>x.kind==='lost').length?setChanges.filter(x=>x.kind==='lost').map(x=><p key={x.key}>{x.text}</p>):<p className="hint">無</p>}</div>
+ <div><h4>獲得的套裝效果</h4>{setChanges.filter(x=>x.kind==='gained').length?setChanges.filter(x=>x.kind==='gained').map(x=><p key={x.key}>{x.text}</p>):<p className="hint">無</p>}</div>
+ <div><h4>{roleLabel(c,'攻擊力、屬性的變動差異')}</h4><p>{[basic,potential?`潛能: ${potential}`:''].filter(Boolean).join(', ')||'無變動'}</p></div>
+ </div>}</div>
+ </>}
+ {pickerGear&&<div className="modal-backdrop"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="simulation-set-title"><h2 id="simulation-set-title">設定 {pickerGear.name} 的套裝</h2>
+ <div className="set-picker-options">{setOptions(pickerGear).map(id=><button type="button" key={id} className={(pickerGear.setId??'none')===id?'set-picker-choice selected':'set-picker-choice'} onClick={()=>chooseSet(pickerGear.id,id)}>{setName(id)}</button>)}</div>
+ <div className="modal-actions"><button type="button" className="ghost" onClick={()=>setPickerId(null)}>取消</button></div></div></div>}
+ </Section>;
 }
 
 function DamagePage({c,monster,update}:{c:Character;monster:Data['monster'];update:(c:Character)=>void}){
@@ -80,11 +146,11 @@ function DamagePage({c,monster,update}:{c:Character;monster:Data['monster'];upda
  return <><div className="page-descriptions"><p>表攻最大值計算、裝備提升期望計算與推薦。</p><p>因公式中進位條件可能與遊戲不同，數值可能與遊戲內有些微誤差。</p></div><Section title="基本設定"><div className="fields-grid two"><Field label={roleLabel(c,"主屬性（能力配點）")} value={c.baseMain} onChange={v=>patch({baseMain:v})}/><Field label={roleLabel(c,"副屬性（能力配點）")} value={c.baseSub} onChange={v=>patch({baseSub:v})}/></div><div className="fields-grid two spaced"><Field label="楓葉祝福等級" value={c.mapleBlessing} onChange={v=>patch({mapleBlessing:v})}/><div className="blessing-info">楓葉祝福提升 {fmt(calc.blessing)}%全屬性</div></div></Section>
  <Section title="額外效果"><div className="fields-grid three">{([['attack','攻擊力'],['main','主屬性'],['sub','副屬性']] as [keyof Simple,string][]).map(([k,label])=><Field key={k} label={roleLabel(c,label)} value={c.consumables[k]} onChange={v=>patch({consumables:{...c.consumables,[k]:v}})}/>)}</div></Section>
  <Section title="目前數值總覽"><div className="metrics">{metric('攻擊力',calc.fixedAttack)}{metric('主屬性 (含楓葉祝福)',calc.fixedMain)}{metric('副屬性 (含楓葉祝福)',calc.fixedSub)}{metric('攻擊力(%)',calc.attackPct,true)}{metric('主屬性(%)',calc.mainPct,true)}{metric('副屬性(%)',calc.subPct,true)}</div><div className="metrics metric-separated">{metric('最終攻擊力',calc.finalAttack)}{metric('最終主屬性',calc.finalMain)}{metric('最終副屬性',calc.finalSub)}</div><div className="result-strip"><span>表攻上限</span><strong>{fmt(calc.range)}</strong></div></Section>
- <Section title="額外裝備提升試算"><div className="fields-grid three">{([['attack','攻擊力'],['main','主屬性'],['sub','副屬性'],['attackPct','攻擊力(%)'],['mainPct','主屬性(%)'],['subPct','副屬性(%)']] as [keyof Character['extra'],string][]).map(([k,label])=><Field key={k} label={roleLabel(c,label)} value={c.extra[k]} unit={k.endsWith('Pct')?'%':undefined} onChange={v=>patch({extra:{...c.extra,[k]:v}})}/>)}</div><div className="metrics spaced">{metric('最終攻擊力',calc.afterAttack)}{metric('最終主屬性',calc.afterMain)}{metric('最終副屬性',calc.afterSub)}</div><div className="result-strip"><span>提升後表攻上限</span><strong>{fmt(calc.afterRange)}</strong></div><div className="result-strip"><span>表攻提升幅度(%)</span><strong className={boost!==null&&boost<0?'negative':'positive'}>{boost===null?'無法計算':`${boost>0?'+':''}${fmt(boost,1)}%`}</strong></div></Section>
+ <Section title="額外裝備調整試算"><div className="fields-grid three">{([['attack','攻擊力'],['main','主屬性'],['sub','副屬性'],['attackPct','攻擊力(%)'],['mainPct','主屬性(%)'],['subPct','副屬性(%)']] as [keyof Character['extra'],string][]).map(([k,label])=><Field key={k} label={roleLabel(c,label)} value={c.extra[k]} unit={k.endsWith('Pct')?'%':undefined} onChange={v=>patch({extra:{...c.extra,[k]:v}})}/>)}</div><div className="metrics spaced">{metric('最終攻擊力',calc.afterAttack)}{metric('最終主屬性',calc.afterMain)}{metric('最終副屬性',calc.afterSub)}</div><div className="result-strip"><span>調整後表攻上限</span><strong className={boost===null?'':boost>0?'positive':boost<0?'negative':''}>{fmt(calc.afterRange)} ({boost===null?'無法計算':`${boost>0?'+':''}${fmt(boost,1)}%`})</strong></div></Section>
  <Section title="推薦強化" description="各項強化分別加入目前角色數值，依表攻上限增加量由高到低排序；不包含額外裝備提升試算中的數值。">
   <div className="table-scroll"><table className="data-table recommendation-table"><thead><tr><th>排名</th><th>強化項目</th><th>表攻提升數值</th></tr></thead>
   <tbody>{recommendations.map((r,i)=><tr key={r.index}><td>{i+1}</td><td>{r.label}</td><td className={r.gain>0?'positive':''}>{r.gain>0?'+':''}{fmt(r.gain)} ({r.pct===null?'無法計算':`${r.pct>0?'+':''}${fmt(r.pct,1)}%`})</td></tr>)}</tbody></table></div>
- </Section></>
+ </Section><GearSimulation c={c} monster={monster} update={update}/></>
 }
 function EquipmentPage({c,update}:{c:Character;update:(c:Character)=>void}){
  const [expanded,setExpanded]=useState<Record<string,boolean>>({});
@@ -113,7 +179,7 @@ function EquipmentPage({c,update}:{c:Character;update:(c:Character)=>void}){
  {expanded.sets&&<EffectPreview items={Array.from({length:3},(_,i)=>({label:`額外套裝效果${i+1}`,text:previewTerms(c,c.sets[i]??{attack:0,main:0,sub:0}).join(', ')}))}/>}</Section>
  <Section title="自動套裝效果預覽" description="依實際選擇的套裝與裝備件數自動判定；各達標件數的加成會累積。">
  <div className="auto-set-grid">{autoSets.filter(set=>set.count>0).map(set=><div className="auto-set-card" key={set.id}><div className="auto-set-title"><strong>{set.name}</strong><span>{set.count} / {set.max} 件</span></div>
- {set.levels.filter(level=>set.count<set.levels[0].required||level.active).map(level=><div key={level.required} className={level.active?'set-level active':'set-level'}><span>{level.required} 件</span><span>{[level.attack?`攻擊+${level.attack}`:'',level.all?`全屬性+${level.all}`:''].filter(Boolean).join(', ')}</span><span>{level.active?'已觸發':'未觸發'}</span></div>)}
+ {set.levels.filter(level=>set.count<set.levels[0].required||level.active).map(level=><div key={level.required} className={level.active?'set-level active':'set-level'}><span>{level.required} 件</span><span>{[level.attack?`${attackName(c)}+${level.attack}`:'',level.all?`全屬性+${level.all}`:''].filter(Boolean).join(', ')}</span><span>{level.active?'已觸發':'未觸發'}</span></div>)}
  </div>)}</div></Section>
  {pickerGear&&<div className="modal-backdrop"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="gear-set-title"><h2 id="gear-set-title">設定 {pickerGear.name} 的套裝</h2><p>請選擇所屬套裝。只有符合套裝部位的裝備可以選擇該套裝。</p>
  <div className="set-picker-options">{setOptions(pickerGear).map(option=><button type="button" key={option} className={pickerGear.setId===option||(!pickerGear.setId&&option==='none')?'set-picker-choice selected':'set-picker-choice'} onClick={()=>chooseSet(pickerGear.id,option)}>{setName(option)}</button>)}</div>
@@ -147,9 +213,9 @@ function SubStatPage({c,monster,update}:{c:Character;monster:Data['monster'];upd
  <span>額外套裝效果{i+1}{(c.sets[i]?.sub??0)!==0?' - '+statName(c,'sub')+'+'+c.sets[i].sub:' - 無'+statName(c,'sub')+'加成'}</span>
  </label>)}</div></div>
  <div className="lock-auto-preview"><h3>已觸發的套裝效果</h3>
- {result.activeSets.filter(set=>set.levels.some(level=>level.active)).length===0?<p className="hint">目前沒有觸發任何套裝效果</p>:
- result.activeSets.filter(set=>set.levels.some(level=>level.active)).map(set=><div key={set.id} className="lock-set-detail"><strong>{set.name}（{set.count} 件）</strong>
- {set.levels.filter(level=>level.active).map(level=><div key={level.required}>{level.required} 件：{[level.attack?`攻擊+${level.attack}`:'',level.all?`全屬性+${level.all}`:''].filter(Boolean).join(', ')}</div>)}
+ {result.activeSets.filter(set=>set.levels.some(level=>level.active&&level.all!==0)).length===0?<p className="hint">目前沒有觸發任何套裝效果</p>:
+ result.activeSets.filter(set=>set.levels.some(level=>level.active&&level.all!==0)).map(set=><div key={set.id} className="lock-set-detail"><strong>{set.name}（{set.count} 件）</strong>
+ {set.levels.filter(level=>level.active&&level.all!==0).map(level=><div key={level.required}>{level.required} 件：{statName(c,'sub')}+{level.all}</div>)}
  </div>)}</div></div></Section>
  <Section title="無法穿上的裝備"><div className="table-scroll"><table className="data-table"><thead><tr><th>無法穿上的裝備類別</th><th>{roleLabel(c,"需求副屬性")}</th><th>{roleLabel(c,"現有副屬性")}</th></tr></thead>
  <tbody>{result.failed.length?result.failed.map(f=><tr key={f.gearId}><td>{f.name}</td><td>{fmt(f.required)}</td><td className="negative">{fmt(f.available)}</td></tr>):<tr><td colSpan={3} className="empty-requirements">目前沒有無法穿上的裝備</td></tr>}</tbody>

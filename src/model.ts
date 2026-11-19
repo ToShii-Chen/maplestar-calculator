@@ -27,7 +27,7 @@ export type Simple={attack:number;main:number;sub:number};
 export const zeroSimple=():Simple=>({attack:0,main:0,sub:0});
 export type Requirement={id:string;gearId:string;required:number};
 export type CharacterSubTab='settings'|'skills'|'gear'|'damage'|'subcheck';
-export type Character={id:string;name:string;lastSubTab?:CharacterSubTab;mainStat:'str'|'dex'|'int'|'luk';subStat:'str'|'dex'|'int'|'luk';baseMain:number;baseSub:number;mastery:number;weaponCoefficient:number;mapleBlessing:number;skills:Skill[];requirements?:Requirement[];lockCheckExtraSub?:number;lockCheckDisabledSets?:boolean[];consumables:Simple & {attack2:number};sets:Simple[];gear:Gear[];extra:{attack:number;main:number;sub:number;attackPct:number;mainPct:number;subPct:number}};
+export type Character={id:string;name:string;simulatedGear?:Gear[];lastSubTab?:CharacterSubTab;mainStat:'str'|'dex'|'int'|'luk';subStat:'str'|'dex'|'int'|'luk';baseMain:number;baseSub:number;mastery:number;weaponCoefficient:number;mapleBlessing:number;skills:Skill[];requirements?:Requirement[];lockCheckExtraSub?:number;lockCheckDisabledSets?:boolean[];consumables:Simple & {attack2:number};sets:Simple[];gear:Gear[];extra:{attack:number;main:number;sub:number;attackPct:number;mainPct:number;subPct:number}};
 export const newCharacter=(id:string,name='欄位'):Character=>({id,name,lastSubTab:'settings',mainStat:'str',subStat:'dex',baseMain:4,baseSub:4,mastery:20,weaponCoefficient:1.2,mapleBlessing:0,skills:defaultSkills(),requirements:[{id:'requirement-1',gearId:'',required:0}],lockCheckExtraSub:0,lockCheckDisabledSets:[true,true,true],consumables:{...zeroSimple(),attack2:0},sets:Array.from({length:3},zeroSimple),gear:defaultGear(),extra:{attack:0,main:0,sub:0,attackPct:0,mainPct:0,subPct:0}});
 export type Data={version:1;monster:Stats;ied:number[];oldIed:number;newIed:number;characters:Character[]};
 export const newData=():Data=>({version:1,monster:{...blankMonster},ied:Array(7).fill(0),oldIed:0,newIed:0,characters:[newCharacter('character-1')]});
@@ -69,4 +69,36 @@ export function checkSubRequirements(c:Character,monster:Stats){
  const failed:{gearId:string;name:string;required:number;available:number}[]=[];
  for(const gear of candidates){const required=requiredByGear.get(gear.id)??0;const available=total();if(available>=required)equipped.push(gear);else failed.push({gearId:gear.id,name:gear.name,required,available});}
  return {failed,finalSub:total(),equippedCount:equipped.length,activeSets:activeSetBonuses(equipped)};
+}
+
+export type GearChanges={
+ original:ReturnType<typeof calculate>;
+ changed:ReturnType<typeof calculate>;
+ oldSets:ReturnType<typeof activeSetBonuses>;
+ newSets:ReturnType<typeof activeSetBonuses>;
+ gear:Gear[];
+ fixed:{attack:number;main:number;sub:number};
+ potential:{attack:number;main:number;sub:number;attackPct:number;mainPct:number;subPct:number};
+};
+/** The simulation replaces only selected slots and never changes the real equipment. */
+export function simulateEquipment(c:Character,monster:Stats):GearChanges{
+ const byId=new Map((c.simulatedGear??[]).map(g=>[g.id,g]));
+ const gear=c.gear.map(g=>byId.get(g.id)??g);
+ const original=calculate(c,monster);
+ const changed=calculate({...c,gear,extra:{attack:0,main:0,sub:0,attackPct:0,mainPct:0,subPct:0}},monster);
+ const oldSets=activeSetBonuses(c.gear),newSets=activeSetBonuses(gear);
+ const delta=(key:keyof Gear)=>sum(gear.map(g=>Number(g[key])||0))-sum(c.gear.map(g=>Number(g[key])||0));
+ // A weapon-only attack potential and weapon/main-offhand attack-% rules match calculate().
+ const potentialAttack=(arr:Gear[])=>sum(arr.filter(g=>g.group==='武器類').map(g=>g.potentialAttack));
+ const potentialAttackPct=(arr:Gear[])=>sum(arr.filter(g=>g.name==='武器'||g.name==='副武／標誌').map(g=>g.potentialAttackPct));
+ const setDeltaAttack=sum(newSets.map(x=>x.attack))-sum(oldSets.map(x=>x.attack));
+ const setDeltaAll=sum(newSets.map(x=>x.all))-sum(oldSets.map(x=>x.all));
+ return {
+  original,changed,oldSets,newSets,gear,
+  fixed:{attack:delta('attack')+setDeltaAttack,main:delta('main')+setDeltaAll,sub:delta('sub')+setDeltaAll},
+  potential:{attack:potentialAttack(gear)-potentialAttack(c.gear),
+   main:delta('potentialMain'),sub:delta('potentialSub'),
+   attackPct:potentialAttackPct(gear)-potentialAttackPct(c.gear),
+   mainPct:delta('potentialMainPct'),subPct:delta('potentialSubPct')}
+ };
 }

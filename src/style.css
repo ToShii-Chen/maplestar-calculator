@@ -127,3 +127,22 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 @media(max-width:720px){.lock-settings-layout{grid-template-columns:1fr}.set-picker-options{grid-template-columns:1fr}}
 
 .equipment-second-intro{margin-top:-12px}
+
+/* Set previews show at most three cards per row, never stretch one card across the row */
+.auto-set-grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}
+.auto-set-card{min-width:0;width:100%;align-self:start}
+.simulation-add{display:flex;gap:12px;align-items:center;max-width:640px}
+.simulation-add select{flex:1 1 0;min-width:0;background:#142438;color:#e1efff;border:1px solid #3d526c;border-radius:7px;padding:10px 12px;text-align:right;text-align-last:right}
+.simulation-add button{display:flex;align-items:center;gap:7px;min-height:39px;justify-content:center}
+.simulation-subsection{margin-top:22px;border-top:1px solid #34455a;padding-top:20px}
+.simulation-subsection h3{font-size:16px;font-weight:650;margin:0 0 16px;color:#dbeafe}
+.simulation-table{min-width:850px}
+.simulation-table td:last-child{text-align:center;min-width:56px}
+.simulation-remove{color:#ff8993}
+.simulation-preview-button{margin-top:20px}
+.simulation-diff{border-top:1px solid #35495f;margin-top:18px;padding-top:16px;display:grid;gap:14px}
+.simulation-diff>div{border:1px solid #35465b;border-radius:9px;padding:13px 16px;background:#111e2e}
+.simulation-diff h4{font-size:14px;font-weight:650;margin:0 0 9px}
+.simulation-diff p{font-size:13px;line-height:1.7;margin:3px 0;color:#bcd1e5}
+@media(max-width:980px){.auto-set-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.auto-set-grid{grid-template-columns:1fr}.simulation-add{gap:8px}.simulation-add button{min-width:78px}}
