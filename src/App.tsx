@@ -1,6 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
 import {Plus,BookOpen,Calculator,Download,Upload,RotateCcw,ChevronRight,Trash2} from 'lucide-react';
-import {mileageCatalog,netMileage,unitMesoPrice,type MileageItem,type CustomMileageItem} from './mileage';
 import {blankMonster,calculate,combinedIed,defenseDamage,improvement,monsterFields,newCharacter,newData,type Character,type CharacterSubTab,type Data,type Gear,type Simple,type Skill,type Requirement,type SetId,checkSubRequirements,activeSetBonuses,setDefinitions,setOptions,setName} from './model';
 import {mileageCatalog,netMileage,unitMesoPrice,type MileageItem,type CustomMileageItem} from './mileage';
 const storage='maplestar-calculator-v1';
