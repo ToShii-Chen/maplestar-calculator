@@ -2,10 +2,12 @@ import {useEffect,useRef,useState} from 'react';
 import {Plus,BookOpen,Calculator,Download,Upload,RotateCcw,ChevronRight,Trash2} from 'lucide-react';
 import {blankMonster,calculate,combinedIed,defenseDamage,improvement,monsterFields,newCharacter,newData,type Character,type CharacterSubTab,type Data,type Gear,type Simple,type Skill,type Requirement,type SetId,checkSubRequirements,activeSetBonuses,setDefinitions,setOptions,setName,simulateEquipment} from './model';
 import {mileageCatalog,netMileage,unitMesoPrice,type MileageItem,type CustomMileageItem} from './mileage';
+import {TaskPage,TaskNav} from './TaskPage';
+import {type TaskState,cleanTaskState,taskDefaults,addTaskColumn} from './tasks';
 const storage='maplestar-calculator-v1';
 const num=(v:string)=>v===''?0:Number(v);
 const fmt=(n:number,d=0)=>n.toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d});
-function load():Data{try{const v=JSON.parse(localStorage.getItem(storage)||'null');if(v?.version===1&&Array.isArray(v.characters)&&v.characters.length)return {...v,characters:v.characters.map((c:Character)=>({...c,skills:Array.isArray(c.skills)?c.skills.map(s=>s.name==='女神的祝福'?{...s,name:'女皇的祝福'}:s):[]}))}}catch{}return newData()}
+function load():Data{try{const v=JSON.parse(localStorage.getItem(storage)||'null');if(v?.version===1&&Array.isArray(v.characters))return {...v,characters:v.characters.map((c:Character)=>({...c,skills:Array.isArray(c.skills)?c.skills.map(s=>s.name==='女神的祝福'?{...s,name:'女皇的祝福'}:s):[]}))}}catch{}return newData()}
 function NumberInput({value,onChange,placeholder='0',percent=false}:{value:number;onChange:(v:number)=>void;placeholder?:string;percent?:boolean}){
  const input=<input type="number" inputMode="decimal" value={value===0?'':value} placeholder={placeholder} onChange={e=>onChange(num(e.target.value))} onKeyDown={e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown')e.preventDefault()}} onWheel={e=>e.currentTarget.blur()}/>;
  return percent?<span className="numeric-percent">{input}<span className="percent-mark">%</span></span>:input;
@@ -265,10 +267,12 @@ function MileagePage({value,set}:{value:MileageState;set:React.Dispatch<React.Se
 function App(){
  const [data,setData]=useState<Data>(load);
  const [mileage,setMileage]=useState<MileageState>(loadMileage);
+ const [tasks,setTasks]=useState<TaskState>(()=>{try{return cleanTaskState(JSON.parse(localStorage.getItem('maplestar-tasks-v1')||'null'))}catch{return taskDefaults()}});
+ const [taskSub,setTaskSub]=useState<string>(()=>{try{return localStorage.getItem('maplestar-last-task-column')||'roles'}catch{return 'roles'}});
  const [tab,setTab]=useState<string>(()=>{
   try {
    const saved=localStorage.getItem('maplestar-last-view');
-   if(saved==='monster'||saved==='ied'||saved==='mileage')return saved;
+   if(saved==='monster'||saved==='ied'||saved==='mileage'||saved==='tasks')return saved;
    const state=JSON.parse(localStorage.getItem(storage)||'null') as Data|null;
    if(state?.characters?.some(c=>c.id===saved))return saved??'monster';
   }catch{}
@@ -297,6 +301,9 @@ function App(){
  const [notice,setNotice]=useState('');
  useEffect(()=>{localStorage.setItem(storage,JSON.stringify(data))},[data]);
  useEffect(()=>{localStorage.setItem('maplestar-mileage-v2',JSON.stringify(mileage))},[mileage]);
+ useEffect(()=>{localStorage.setItem('maplestar-tasks-v1',JSON.stringify(tasks))},[tasks]);
+ useEffect(()=>{try{localStorage.setItem('maplestar-last-task-column',taskSub)}catch{}},[taskSub]);
+ useEffect(()=>{if(taskSub!=='roles'&&!tasks.columns.some(x=>x.id===taskSub))setTaskSub(tasks.columns[0]?.id??'roles')},[tasks.columns,taskSub]);
  const current=data.characters.find(c=>c.id===tab);
  useEffect(()=>{try{localStorage.setItem('maplestar-last-view',tab)}catch{}},[tab]);
  useEffect(()=>{
@@ -306,7 +313,7 @@ function App(){
   }
  },[tab,data.characters]);
  useEffect(()=>{
-  const key=tab==='monster'||tab==='ied'||tab==='mileage'?tab:tab+'|'+sub;
+  const key=tab==='monster'||tab==='ied'||tab==='mileage'?tab:tab==='tasks'?'tasks|'+taskSub:tab+'|'+sub;
   const scrollKey='maplestar-view-scroll-'+key;
   let position=0;
   try{position=Number(localStorage.getItem(scrollKey)||0)||0}catch{}
@@ -320,11 +327,11 @@ function App(){
   const saveScroll=()=>{if(initialScroll.current)return;try{localStorage.setItem(scrollKey,String(window.scrollY))}catch{}};
   window.addEventListener('scroll',saveScroll,{passive:true});
   return ()=>{window.removeEventListener('scroll',saveScroll);cancelAnimationFrame(frame1);cancelAnimationFrame(frame2)};
- },[tab,sub]);
+ },[tab,sub,taskSub]);
  const updateCharacter=(c:Character)=>setData(d=>({...d,characters:d.characters.map(x=>x.id===c.id?c:x)}));
  const selectCharacter=(c:Character)=>{setTab(c.id);setLastCharacter(c.id);setSub(c.lastSubTab??'settings')};
  const openCalculator=()=>{
-  if(tab==='ied'||tab==='mileage'){
+  if(tab==='ied'||tab==='mileage'||tab==='tasks'){
    const target=lastCalculator==='monster'||data.characters.some(c=>c.id===lastCalculator)?lastCalculator:'monster';
    setTab(target);
    const character=data.characters.find(c=>c.id===target);
@@ -333,13 +340,16 @@ function App(){
  };
  useEffect(()=>{try{if(lastCharacter)localStorage.setItem('maplestar-last-character',lastCharacter)}catch{}},[lastCharacter]);
  const selectSub=(next:CharacterSubTab)=>{setSub(next);if(current)setData(d=>({...d,characters:d.characters.map(x=>x.id===current.id?{...x,lastSubTab:next}:x)}))};
- const add=()=>{const id=`character-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;setData(d=>({...d,characters:[...d.characters,newCharacter(id)]}));setTab(id);setLastCharacter(id);setSub('settings')};
+ const add=()=>{const id=`character-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;setData(d=>({...d,characters:[...d.characters,newCharacter(id,'新欄位')]}));setTab(id);setLastCharacter(id);setSub('settings')};
+ const addTaskTab=()=>{const next=addTaskColumn(tasks);setTasks(next);setTaskSub(next.columns[next.columns.length-1].id)};
  const remove=()=>{
   if(!current||!window.confirm(`確定刪除「${current.name}」？此操作無法復原。`))return;
   const remaining=data.characters.filter(c=>c.id!==current.id);
-  const replacement=remaining[0]??newCharacter(`character-${Date.now()}`);
-  setData(d=>({...d,characters:remaining.length?remaining:[replacement]}));
-  setTab(replacement.id);setLastCharacter(replacement.id);setSub(replacement.lastSubTab??'settings');
+  setData(d=>({...d,characters:d.characters.filter(c=>c.id!==current.id)}));
+  const next=remaining[0];
+  if(next){setTab(next.id);setLastCharacter(next.id);setSub(next.lastSubTab??'settings')}
+  else{setTab('monster');setLastCharacter('');setLastCalculator('monster')}
+
  };
  const exportCharacter=()=>{if(!current)return;const payload={format:'maplestar-character',version:1,character:current};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download=(current.name.replace(/[^\w\u4e00-\u9fff-]/g,'_')||'欄位')+'.json';anchor.click();URL.revokeObjectURL(url)};
  const importCharacter=async(f?:File)=>{if(!f)return;try{const obj=JSON.parse(await f.text());const c=obj?.format==='maplestar-character'&&obj.version===1?obj.character:null;
@@ -348,11 +358,12 @@ function App(){
  const imported:Character={...c,id,name:c.name.trim().slice(0,10),skills:c.skills.map((s:Skill)=>s.name==='女神的祝福'?{...s,name:'女皇的祝福'}:s),sets:Array.from({length:3},(_,i)=>c.sets[i]??{attack:0,main:0,sub:0}),lockCheckDisabledSets:Array.from({length:3},(_,i)=>c.lockCheckDisabledSets?.[i]??true)};
  setData(d=>({...d,characters:[...d.characters,imported]}));setTab(id);setLastCharacter(id);setSub('settings');setNotice('已匯入角色欄位');
  }catch{setNotice('匯入失敗：請選擇「匯出json」產生的角色檔案')}};
- const resetCurrent=()=>{const label=tab==='monster'?'怪物圖鑑':tab==='ied'?'無視防禦計算':tab==='mileage'?'里程購買計算機':sub==='settings'?'角色設定':sub==='skills'?'技能設定':sub==='gear'?'裝備':sub==='subcheck'?'鎖潛檢查':'傷害計算';
+ const resetCurrent=()=>{const label=tab==='monster'?'怪物圖鑑':tab==='ied'?'無視防禦計算':tab==='mileage'?'里程購買計算機':tab==='tasks'?'任務管理':sub==='settings'?'角色設定':sub==='skills'?'技能設定':sub==='gear'?'裝備':sub==='subcheck'?'鎖潛檢查':'傷害計算';
  if(!window.confirm('確定將「'+label+'」還原至預設？只影響目前頁面的資料。'))return;
  if(tab==='monster'){setData(d=>({...d,monster:{...blankMonster}}));return}
  if(tab==='ied'){setData(d=>({...d,ied:Array(7).fill(0),oldIed:0,newIed:0}));return}
  if(tab==='mileage'){setMileage(s=>({...s,gross:0,mesos:1}));return}
+ if(tab==='tasks'){setTasks(s=>({...s,columns:s.columns.map(c=>c.id===taskSub?{...c,lastReset:new Date().toISOString(),tasks:c.tasks.map(t=>({...t,completedRoleIds:[]}))}:c)}));return}
  if(!current)return;const defaults=newCharacter(current.id,current.name);
  if(sub==='settings')updateCharacter({...current,mainStat:defaults.mainStat,subStat:defaults.subStat,mastery:defaults.mastery,weaponCoefficient:defaults.weaponCoefficient});
  if(sub==='skills')updateCharacter({...current,skills:defaults.skills});
@@ -363,17 +374,19 @@ function App(){
  return <div className="app"><header className="top">
  <div className="top-primary"><div className="brand"><div className="brand-icon"><Calculator size={21}/></div><div><strong>楓星計算工具</strong><small>MapleStar Toolkit</small></div></div>
  <nav className="tabs" aria-label="主功能頁籤">
- <button className={tab!=='ied'&&tab!=='mileage'?'tab active':'tab'} onClick={openCalculator}><Calculator size={16}/>傷害計算機</button>
+ <button className={tab!=='ied'&&tab!=='mileage'&&tab!=='tasks'?'tab active':'tab'} onClick={openCalculator}><Calculator size={16}/>傷害計算機</button>
  <button className={tab==='ied'?'tab active':'tab'} onClick={()=>setTab('ied')}><Calculator size={16}/>無視防禦計算</button>
- <button className={tab==='mileage'?'tab active':'tab'} onClick={()=>setTab('mileage')}><Calculator size={16}/>里程購買計算機</button></nav></div>
- {tab!=='ied'&&tab!=='mileage'&&<><div className="top-secondary"><div className="character-nav">
+ <button className={tab==='mileage'?'tab active':'tab'} onClick={()=>setTab('mileage')}><Calculator size={16}/>里程購買計算機</button>
+ <button className={tab==='tasks'?'tab active':'tab'} onClick={()=>setTab('tasks')}><BookOpen size={16}/>任務管理</button></nav></div>
+ {tab!=='ied'&&tab!=='mileage'&&tab!=='tasks'&&<><div className="top-secondary"><div className="character-nav">
  <nav className="tabs character-tabs" aria-label="角色欄位"><button className={tab==='monster'?'tab active':'tab'} onClick={()=>setTab('monster')}><BookOpen size={16}/>怪物圖鑑</button>{data.characters.map(c=><button key={c.id} className={tab===c.id?'tab active':'tab'} onClick={()=>selectCharacter(c)} title={c.name}>{c.name}</button>)}<button className="tab add-tab" onClick={add} aria-label="新增欄位"><Plus size={19}/></button></nav>
  <label className="tab import-tab"><Upload size={16}/>匯入json<input type="file" accept=".json,application/json" hidden onChange={e=>{void importCharacter(e.target.files?.[0]);e.target.value=''}}/></label>
  </div></div>
  {current&&<div className="top-tertiary"><div className="subtabs"><button className={sub==='settings'?'selected':''} onClick={()=>selectSub('settings')}>角色設定</button><button className={sub==='skills'?'selected':''} onClick={()=>selectSub('skills')}>技能設定</button><button className={sub==='gear'?'selected':''} onClick={()=>selectSub('gear')}>裝備</button><button className={sub==='damage'?'selected':''} onClick={()=>selectSub('damage')}>傷害計算</button><button className={sub==='subcheck'?'selected':''} onClick={()=>selectSub('subcheck')}>鎖潛檢查</button><span className="subtab-spacer"/><button onClick={exportCharacter}><Download size={15}/>匯出json</button><button onClick={()=>{setNewName(current.name);setRename(true)}}>重新命名 <ChevronRight size={15}/></button><button className="danger-tab" onClick={remove}><Trash2 size={15}/>刪除該欄位</button></div></div>}</>}
+ {tab==='tasks'&&<div className="top-secondary"><div className="character-nav"><TaskNav value={tasks} selected={taskSub} select={setTaskSub} add={addTaskTab}/></div></div>}
  </header>
  <main className="main">
- {tab==='monster'?<MonsterPage data={data} set={setData}/>:tab==='ied'?<IedPage data={data} set={setData}/>:tab==='mileage'?<MileagePage value={mileage} set={setMileage}/>:current?<>
+ {tab==='monster'?<MonsterPage data={data} set={setData}/>:tab==='ied'?<IedPage data={data} set={setData}/>:tab==='mileage'?<MileagePage value={mileage} set={setMileage}/>:tab==='tasks'?<TaskPage value={tasks} set={setTasks} selected={taskSub} select={setTaskSub}/>:current?<>
  {sub==='settings'?<CharacterSettings c={current} update={updateCharacter}/>:sub==='skills'?<SkillSettings c={current} update={updateCharacter}/>:sub==='gear'?<EquipmentPage c={current} update={updateCharacter}/>:sub==='damage'?<DamagePage c={current} monster={data.monster} update={updateCharacter}/>:<SubStatPage c={current} monster={data.monster} update={updateCharacter}/>}</>:null}
  <footer><span>作者: Satoshi</span><button onClick={resetCurrent}><RotateCcw size={14}/>還原至預設</button></footer></main>
  {rename&&current&&<div className="modal-backdrop"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="rename-title" onClick={e=>e.stopPropagation()}><h2 id="rename-title">重新命名欄位</h2><p>名稱最多 10 個字。</p><input autoFocus maxLength={10} value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&newName.trim()){updateCharacter({...current,name:newName.trim()});setRename(false)}}}/><div className="modal-actions"><button className="ghost" onClick={()=>setRename(false)}>取消</button><button className="solid" disabled={!newName.trim()} onClick={()=>{updateCharacter({...current,name:newName.trim()});setRename(false)}}>儲存名稱</button></div></div></div>}
