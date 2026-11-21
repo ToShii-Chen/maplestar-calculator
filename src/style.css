@@ -178,3 +178,19 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .task-assign-row{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid #31465f;border-radius:7px;background:#142237;cursor:pointer;font-size:14px}
 .task-assign-row input{width:17px;height:17px;accent-color:#60a5fa;flex:0 0 auto}
 @media(max-width:700px){.task-actions{gap:7px}.task-reset-actions{justify-content:flex-end}.task-progress-table td:not(:first-child){min-width:68px}}
+
+/* Task management revisions: four role cards and fixed 6-character progress grids */
+.task-roles-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.task-no-roles{grid-column:1/-1;white-space:nowrap;overflow-wrap:normal;word-break:keep-all}
+.task-role-card{min-width:0;overflow-wrap:anywhere}
+.task-nav-actions{display:flex;gap:8px;align-items:center;margin-left:auto;flex:0 0 auto}
+.task-nav-actions button{display:inline-flex;gap:6px;align-items:center;border:0;border-bottom:2px solid transparent;background:transparent;color:#9dacc0;font-weight:600;padding:13px 12px;white-space:nowrap}
+.task-nav-actions button:hover{background:#20334a;color:#fff}
+.task-nav-actions .task-danger{color:#ff8a94}
+.task-progress-groups{display:grid;gap:24px}
+.task-progress-groups .table-scroll{width:100%}
+.task-progress-table{table-layout:fixed;width:100%;min-width:640px}
+.task-progress-table th:first-child,.task-progress-table td:first-child{width:22%;min-width:135px}
+.task-progress-table th:not(:first-child),.task-progress-table td:not(:first-child){width:13%;min-width:0;text-align:center}
+@media(max-width:800px){.task-nav-actions button{padding:10px 6px;font-size:12px}.task-roles-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:480px){.task-role-card{padding:10px 5px;font-size:12px}.task-no-roles{font-size:12px}.task-progress-table{min-width:580px}}

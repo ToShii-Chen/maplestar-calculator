@@ -383,7 +383,7 @@ function App(){
  <label className="tab import-tab"><Upload size={16}/>匯入json<input type="file" accept=".json,application/json" hidden onChange={e=>{void importCharacter(e.target.files?.[0]);e.target.value=''}}/></label>
  </div></div>
  {current&&<div className="top-tertiary"><div className="subtabs"><button className={sub==='settings'?'selected':''} onClick={()=>selectSub('settings')}>角色設定</button><button className={sub==='skills'?'selected':''} onClick={()=>selectSub('skills')}>技能設定</button><button className={sub==='gear'?'selected':''} onClick={()=>selectSub('gear')}>裝備</button><button className={sub==='damage'?'selected':''} onClick={()=>selectSub('damage')}>傷害計算</button><button className={sub==='subcheck'?'selected':''} onClick={()=>selectSub('subcheck')}>鎖潛檢查</button><span className="subtab-spacer"/><button onClick={exportCharacter}><Download size={15}/>匯出json</button><button onClick={()=>{setNewName(current.name);setRename(true)}}>重新命名 <ChevronRight size={15}/></button><button className="danger-tab" onClick={remove}><Trash2 size={15}/>刪除該欄位</button></div></div>}</>}
- {tab==='tasks'&&<div className="top-secondary"><div className="character-nav"><TaskNav value={tasks} selected={taskSub} select={setTaskSub} add={addTaskTab}/></div></div>}
+ {tab==='tasks'&&<div className="top-secondary"><div className="character-nav"><TaskNav value={tasks} set={setTasks} selected={taskSub} select={setTaskSub} add={addTaskTab}/></div></div>}
  </header>
  <main className="main">
  {tab==='monster'?<MonsterPage data={data} set={setData}/>:tab==='ied'?<IedPage data={data} set={setData}/>:tab==='mileage'?<MileagePage value={mileage} set={setMileage}/>:tab==='tasks'?<TaskPage value={tasks} set={setTasks} selected={taskSub} select={setTaskSub}/>:current?<>
