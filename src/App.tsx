@@ -358,18 +358,22 @@ function App(){
  const imported:Character={...c,id,name:c.name.trim().slice(0,10),skills:c.skills.map((s:Skill)=>s.name==='女神的祝福'?{...s,name:'女皇的祝福'}:s),sets:Array.from({length:3},(_,i)=>c.sets[i]??{attack:0,main:0,sub:0}),lockCheckDisabledSets:Array.from({length:3},(_,i)=>c.lockCheckDisabledSets?.[i]??true)};
  setData(d=>({...d,characters:[...d.characters,imported]}));setTab(id);setLastCharacter(id);setSub('settings');setNotice('已匯入角色欄位');
  }catch{setNotice('匯入失敗：請選擇「匯出json」產生的角色檔案')}};
- const resetCurrent=()=>{const label=tab==='monster'?'怪物圖鑑':tab==='ied'?'無視防禦計算':tab==='mileage'?'里程購買計算機':tab==='tasks'?'任務管理':sub==='settings'?'角色設定':sub==='skills'?'技能設定':sub==='gear'?'裝備':sub==='subcheck'?'鎖潛檢查':'傷害計算';
+ const resetCurrent=()=>{const label=tab==='monster'?'怪物圖鑑':tab==='ied'?'無視防禦計算':tab==='mileage'?'里程購買計算機':tab==='tasks'?(taskSub==='roles'?'角色管理':tasks.columns.find(c=>c.id===taskSub)?.name??'任務管理'):sub==='settings'?'角色設定':sub==='skills'?'技能設定':sub==='gear'?'裝備':sub==='subcheck'?'鎖潛檢查':'傷害計算';
  if(!window.confirm('確定將「'+label+'」還原至預設？只影響目前頁面的資料。'))return;
  if(tab==='monster'){setData(d=>({...d,monster:{...blankMonster}}));return}
  if(tab==='ied'){setData(d=>({...d,ied:Array(7).fill(0),oldIed:0,newIed:0}));return}
  if(tab==='mileage'){setMileage(s=>({...s,gross:0,mesos:1}));return}
- if(tab==='tasks'){setTasks(s=>({...s,columns:s.columns.map(c=>c.id===taskSub?{...c,lastReset:new Date().toISOString(),tasks:c.tasks.map(t=>({...t,completedRoleIds:[]}))}:c)}));return}
+ if(tab==='tasks'){
+  if(taskSub==='roles'){setTasks(s=>({...s,roles:[],columns:s.columns.map(c=>({...c,tasks:c.tasks.map(t=>({...t,roleIds:[],completedRoleIds:[]}))}))}));return}
+  setTasks(s=>({...s,columns:s.columns.map(c=>c.id===taskSub?{...c,tasks:[],lastReset:null}:c)}));
+  return;
+ }
  if(!current)return;const defaults=newCharacter(current.id,current.name);
  if(sub==='settings')updateCharacter({...current,mainStat:defaults.mainStat,subStat:defaults.subStat,mastery:defaults.mastery,weaponCoefficient:defaults.weaponCoefficient});
  if(sub==='skills')updateCharacter({...current,skills:defaults.skills});
  if(sub==='gear')updateCharacter({...current,gear:defaults.gear,sets:defaults.sets});
  if(sub==='subcheck')updateCharacter({...current,requirements:defaults.requirements,lockCheckExtraSub:defaults.lockCheckExtraSub,lockCheckDisabledSets:defaults.lockCheckDisabledSets});
- if(sub==='damage')updateCharacter({...current,baseMain:defaults.baseMain,baseSub:defaults.baseSub,mapleBlessing:defaults.mapleBlessing,consumables:defaults.consumables,extra:defaults.extra});
+ if(sub==='damage')updateCharacter({...current,baseMain:defaults.baseMain,baseSub:defaults.baseSub,mapleBlessing:defaults.mapleBlessing,consumables:defaults.consumables,extra:defaults.extra,simulatedGear:[]});
  };
  return <div className="app"><header className="top">
  <div className="top-primary"><div className="brand"><div className="brand-icon"><Calculator size={21}/></div><div><strong>楓星計算工具</strong><small>MapleStar Toolkit</small></div></div>

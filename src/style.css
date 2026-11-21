@@ -194,3 +194,15 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .task-progress-table th:not(:first-child),.task-progress-table td:not(:first-child){width:13%;min-width:0;text-align:center}
 @media(max-width:800px){.task-nav-actions button{padding:10px 6px;font-size:12px}.task-roles-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:480px){.task-role-card{padding:10px 5px;font-size:12px}.task-no-roles{font-size:12px}.task-progress-table{min-width:580px}}
+
+/* Task panels: keep four role cards but show six task cards per row */
+.task-items-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+.task-sort-list{display:grid;gap:8px;max-height:50vh;overflow-y:auto;margin:6px 0 18px}
+.task-sort-row{display:flex;align-items:center;gap:8px;background:#13243a;border:1px solid #30465f;border-radius:8px;padding:8px 10px}
+.task-sort-index{min-width:24px;color:#87a5c6;font-size:13px}
+.task-sort-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.task-sort-row .icon-button{display:inline-flex;align-items:center;justify-content:center;min-width:36px;min-height:34px;border:1px solid #354c68;border-radius:7px}
+.task-delete-submit{background:#a33c4d}
+.task-delete-submit:hover:not(:disabled){background:#be4a5c}
+.task-actions button{white-space:nowrap}
+@media(max-width:720px){.task-items-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
