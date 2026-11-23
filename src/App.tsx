@@ -68,23 +68,19 @@ function SkillSettings({c,update}:{c:Character;update:(c:Character)=>void}){
 
 
 
-type BonusField=keyof Character['extra']|'luck';
+type BonusField=keyof Character['extra'];
 const zeroEnhancement=():Character['extra']=>({attack:0,main:0,sub:0,attackPct:0,mainPct:0,subPct:0});
 function EnhancementRecommendations({c,monster,gear,extra,title,description}:{c:Character;monster:Data['monster'];gear:Gear[];extra:Character['extra'];title:string;description:string}){
  const baseline=calculate({...c,gear,extra},monster).afterRange;
  const boosts:[BonusField,number,string][]=[
   ['attack',10,'攻擊 +10'],['attack',20,'攻擊 +20'],['attack',30,'攻擊 +30'],
   ['attackPct',6,'攻擊 +6%'],['attackPct',9,'攻擊 +9%'],['attackPct',12,'攻擊 +12%'],
-  ...((c.mainStat==='luk'?[]:[['mainPct',3,'主屬性 +3%']]) as [BonusField,number,string][]),
   ['mainPct',6,'主屬性 +6%'],['mainPct',9,'主屬性 +9%'],['mainPct',12,'主屬性 +12%'],
-  ['luck',10,'幸運 +10'],['luck',20,'幸運 +20'],['luck',30,'幸運 +30']
+  ['main',10,'主屬性 +10'],['main',20,'主屬性 +20'],['main',30,'主屬性 +30']
  ];
  const recommendations=boosts.map(([field,amount,label],index)=>{
   const adjustment={...extra};
-  if(field==='luck'){
-   if(c.mainStat==='luk')adjustment.main+=amount;
-   if(c.subStat==='luk')adjustment.sub+=amount;
-  }else adjustment[field]+=amount;
+  adjustment[field]+=amount;
   const tested=calculate({...c,gear,extra:adjustment},monster).afterRange;
   const gain=tested-baseline;
   return {label:roleLabel(c,label),gain,pct:baseline>0?gain/baseline*100:null,index};
