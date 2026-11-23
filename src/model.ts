@@ -85,7 +85,8 @@ export function simulateEquipment(c:Character,monster:Stats):GearChanges{
  const byId=new Map((c.simulatedGear??[]).map(g=>[g.id,g]));
  const gear=c.gear.map(g=>byId.get(g.id)??g);
  const original=calculate(c,monster);
- const changed=calculate({...c,gear,extra:{attack:0,main:0,sub:0,attackPct:0,mainPct:0,subPct:0}},monster);
+ const recalculated=calculate({...c,gear},monster);
+ const changed={...recalculated,range:recalculated.afterRange,finalAttack:recalculated.afterAttack,finalMain:recalculated.afterMain,finalSub:recalculated.afterSub};
  const oldSets=activeSetBonuses(c.gear),newSets=activeSetBonuses(gear);
  const delta=(key:keyof Gear)=>sum(gear.map(g=>Number(g[key])||0))-sum(c.gear.map(g=>Number(g[key])||0));
  // A weapon-only attack potential and weapon/main-offhand attack-% rules match calculate().

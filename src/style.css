@@ -214,3 +214,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .task-role-card{line-height:1.45}
 .tab,.subtabs button,.task-nav-actions button{line-height:1.4}
 .task-actions button,.task-reset-actions button{white-space:nowrap}
+
+/* Unified equipment simulation: direct adjustment grid above the two add modes */
+.simulation-extra-fields{margin:3px 0 22px}
+.simulation-add{max-width:none;display:flex;flex-wrap:wrap;gap:10px}
+.simulation-add select{flex:1 1 245px;min-width:190px;max-width:460px}
+.simulation-add button{flex:0 0 auto;white-space:nowrap;min-height:43px}
+@media(max-width:680px){.simulation-add select{max-width:none;flex-basis:100%}.simulation-add button{flex:1 1 auto}}
