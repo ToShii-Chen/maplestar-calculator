@@ -1,6 +1,6 @@
 export type Stats = {str:number;dex:number;int:number;luk:number;all:number;allPct:number;attack:number;attackPct:number;damagePct:number;bossPct:number;ied:number};
 export const blankMonster:Stats={str:0,dex:0,int:0,luk:0,all:0,allPct:0,attack:0,attackPct:0,damagePct:0,bossPct:0,ied:0};
-export const monsterFields:[keyof Stats,string][]=[['str','力量'],['dex','敏捷'],['int','智力'],['luk','幸運'],['all','全屬性'],['allPct','全屬性(%)'],['attack','攻擊力'],['attackPct','攻擊力(%)'],['damagePct','總傷害(%)'],['bossPct','BOSS傷害(%)'],['ied','無視防禦(%)']];
+export const monsterFields:[keyof Stats,string][]=[['str','力量'],['dex','敏捷'],['int','智力'],['luk','幸運'],['all','全屬性'],['allPct','全屬性(%)'],['attack','攻擊'],['attackPct','攻擊(%)'],['damagePct','總傷害(%)'],['bossPct','BOSS傷害(%)'],['ied','無視防禦(%)']];
 export type SetId='none'|'von'|'empress'|'sengoku';
 export type Gear={id:string;name:string;group:string;setId?:SetId;attack:number;main:number;sub:number;potentialAttack:number;potentialMain:number;potentialSub:number;potentialAttackPct:number;potentialMainPct:number;potentialSubPct:number};
 const groups:[string,string[]][]=[['武器類',['武器','副武／標誌','盾牌']],['防具類',['帽子','披風','手套','上衣（套服）','褲裙','鞋子']],['飾品類',['臉飾','眼飾','項鍊','腰帶','耳環','肩膀','戒指1','戒指2','戒指3','戒指4']],['其他類',['徽章','勳章','口袋道具','機械心臟','圖騰','寵物裝備1','寵物裝備2','寵物裝備3']]];
