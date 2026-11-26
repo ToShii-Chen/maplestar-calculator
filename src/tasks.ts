@@ -1,8 +1,8 @@
 export type TaskRole={id:string;name:string};
 export type TaskItem={id:string;name:string;roleIds:string[];completedRoleIds:string[]};
 export type TaskColumn={id:string;name:string;tasks:TaskItem[];lastReset:string|null};
-export type TaskState={roles:TaskRole[];columns:TaskColumn[]};
-export const taskDefaults=():TaskState=>({roles:[],columns:[{id:'weekly',name:'每週任務',tasks:[],lastReset:null},{id:'daily',name:'每日任務',tasks:[],lastReset:null}]});
+export type TaskState={roles:TaskRole[];columns:TaskColumn[];resetReminderEnabled:boolean};
+export const taskDefaults=():TaskState=>({roles:[],resetReminderEnabled:true,columns:[{id:'weekly',name:'每週任務',tasks:[],lastReset:null},{id:'daily',name:'每日任務',tasks:[],lastReset:null}]});
 export const newTaskId=(prefix:string)=>prefix+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,9);
 export const addTaskColumn=(s:TaskState):TaskState=>({...s,columns:[...s.columns,{id:newTaskId('column'),name:'新欄位',tasks:[],lastReset:null}]});
 export const cleanTaskState=(raw:unknown):TaskState=>{
@@ -19,7 +19,7 @@ export const cleanTaskState=(raw:unknown):TaskState=>{
    completedRoleIds:Array.isArray(t.completedRoleIds)?[...new Set(t.completedRoleIds.filter(id=>valid.has(id)))]:[]
   }))
  }));
- return {roles,columns};
+ return {roles,columns,resetReminderEnabled:v.resetReminderEnabled!==false};
 };
 export const setTaskRoles=(s:TaskState,roleId:string,selectedTaskIds:Set<string>):TaskState=>({
  ...s,columns:s.columns.map(c=>({...c,tasks:c.tasks.map(t=>({

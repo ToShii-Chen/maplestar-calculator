@@ -31,7 +31,7 @@ const weaponGroups:[string,[string,number][]][]=[
 function MonsterPage({data,set}:{data:Data;set:(d:Data)=>void}){
  const update=(k:keyof typeof blankMonster,v:number)=>set({...data,monster:{...data.monster,[k]:v}});
  const fields=(start:number,end:number)=>(monsterFields.slice(start,end).map(([k,label])=><Field key={k} label={label} value={data.monster[k]} unit={k.endsWith('Pct')||k==='ied'||k==='bossPct'||k==='damagePct'?'%':undefined} onChange={v=>update(k,v)}/>));
- return <><p className="intro">統計怪物圖鑑中的所有加成。</p><Section title="屬性加成"><div className="fields-grid four">{fields(0,4)}</div><div className="fields-grid two spaced">{fields(4,6)}</div></Section><Section title="攻擊與傷害加成"><div className="fields-grid two">{fields(6,8)}</div><div className="fields-grid three spaced">{fields(8,11)}</div></Section></>
+ return <><p className="intro">統計帳號共用的額外加成，例如: 怪物圖鑑、冒險故事書。</p><Section title="屬性加成"><div className="fields-grid four">{fields(0,4)}</div><div className="fields-grid two spaced">{fields(4,6)}</div></Section><Section title="攻擊與傷害加成"><div className="fields-grid two">{fields(6,8)}</div><div className="fields-grid three spaced">{fields(8,11)}</div></Section></>
 }
 function IedPage({data,set}:{data:Data;set:(d:Data)=>void}){
  const total=combinedIed(data.ied);
@@ -103,7 +103,8 @@ function GearSimulation({c,monster,update}:{c:Character;monster:Data['monster'];
  const deltaPct=result.original.range>0?deltaRange/result.original.range*100:null;
  const change=(id:string,key:keyof Gear,value:number)=>update({...c,simulatedGear:entries.map(g=>g.id===id?{...g,[key]:value}:g)});
  const chooseSet=(id:string,setId:SetId)=>{update({...c,simulatedGear:entries.map(g=>g.id===id?{...g,setId}:g)});setPickerId(null)};
- const add=(copyOriginal:boolean)=>{const gear=c.gear.find(g=>g.id===selectedId);if(!gear||ids.has(gear.id))return;const next:Gear=copyOriginal?{...gear}:{...gear,setId:'none',attack:0,main:0,sub:0,potentialAttack:0,potentialMain:0,potentialSub:0,potentialAttackPct:0,potentialMainPct:0,potentialSubPct:0};update({...c,simulatedGear:[...entries,next]});setSelectedId('')};
+ const add=(copyOriginal:boolean)=>{const gear=c.gear.find(g=>g.id===selectedId);if(!gear||ids.has(gear.id))return;const next:Gear=copyOriginal?{...gear,simulationEnabled:true}:{...gear,setId:'none',simulationEnabled:true,attack:0,main:0,sub:0,potentialAttack:0,potentialMain:0,potentialSub:0,potentialAttackPct:0,potentialMainPct:0,potentialSubPct:0};update({...c,simulatedGear:[...entries,next]});setSelectedId('')};
+ const toggleSimulation=(id:string)=>update({...c,simulatedGear:entries.map(g=>g.id===id?{...g,simulationEnabled:g.simulationEnabled===false}:g)});
  const remove=(id:string)=>update({...c,simulatedGear:entries.filter(g=>g.id!==id)});
  const pickerGear=entries.find(g=>g.id===pickerId);
  const enhanced=(groups:string[])=>entries.filter(g=>groups.includes(g.group));
@@ -131,7 +132,7 @@ function GearSimulation({c,monster,update}:{c:Character;monster:Data['monster'];
  ].filter(Boolean).join(', ');
  const renderRows=(items:Gear[],weapons:boolean)=><div className="table-scroll"><table className="data-table editable gear-table simulation-table">
  <thead><tr><th>裝備</th>{gearKeys.filter(([k])=>weapons||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k,label])=><th key={k} className={`gear-${k.startsWith('potential')?'potential':'standard'} ${k===(weapons?'potentialAttack':'potentialMain')?'potential-start':''}`}>{roleLabel(c,label)}</th>)}<th>操作</th></tr></thead>
- <tbody>{items.map(g=><tr key={g.id}><td className="sticky-name"><button type="button" className="gear-name-button" onClick={()=>setPickerId(g.id)}>{g.name}<ChevronRight size={13}/></button>{g.setId&&g.setId!=='none'&&<div className="gear-set-caption">{setName(g.setId)}</div>}</td>
+ <tbody>{items.map(g=><tr key={g.id}><td className="sticky-name"><div className="simulation-gear-heading"><button type="button" className="gear-name-button" onClick={()=>setPickerId(g.id)}>{g.name}<ChevronRight size={13}/></button><button type="button" className={g.simulationEnabled===false?'simulation-onoff off':'simulation-onoff on'} aria-label={g.name+'模擬變更'+(g.simulationEnabled===false?'已停用，點擊啟用':'已啟用，點擊停用')} aria-pressed={g.simulationEnabled!==false} onClick={()=>toggleSimulation(g.id)}>{g.simulationEnabled===false?'OFF':'ON'}</button></div>{g.setId&&g.setId!=='none'&&<div className="gear-set-caption">{setName(g.setId)}</div>}</td>
  {gearKeys.filter(([k])=>weapons||(k!=='potentialAttack'&&k!=='potentialAttackPct')).map(([k])=>{
   const enabled=k!=='potentialAttackPct'||g.name==='武器'||g.name==='副武／標誌';
   return <td key={k} className={`gear-${k.startsWith('potential')?'potential':'standard'} ${k===(weapons?'potentialAttack':'potentialMain')?'potential-start':''}`}>{enabled?<NumberInput value={Number(g[k])||0} percent={k.endsWith('Pct')} onChange={n=>change(g.id,k,n)}/>:<span className="na">—</span>}</td>;
@@ -376,7 +377,7 @@ function App(){
  const imported:Character={...c,id,name:c.name.trim().slice(0,10),skills:c.skills.map((s:Skill)=>s.name==='女神的祝福'?{...s,name:'女皇的祝福'}:s),sets:Array.from({length:3},(_,i)=>c.sets[i]??{attack:0,main:0,sub:0}),lockCheckDisabledSets:Array.from({length:3},(_,i)=>c.lockCheckDisabledSets?.[i]??true)};
  setData(d=>({...d,characters:[...d.characters,imported]}));setTab(id);setLastCharacter(id);setSub('settings');setNotice('已匯入角色欄位');
  }catch{setNotice('匯入失敗：請選擇「匯出json」產生的角色檔案')}};
- const resetCurrent=()=>{const label=tab==='monster'?'怪物圖鑑':tab==='ied'?'無視防禦計算':tab==='mileage'?'里程購買計算機':tab==='tasks'?(taskSub==='roles'?'角色管理':tasks.columns.find(c=>c.id===taskSub)?.name??'任務管理'):sub==='settings'?'角色設定':sub==='skills'?'技能設定':sub==='gear'?'裝備':sub==='subcheck'?'鎖潛檢查':'傷害計算';
+ const resetCurrent=()=>{const label=tab==='monster'?'帳號額外加成':tab==='ied'?'無視防禦計算':tab==='mileage'?'里程購買計算機':tab==='tasks'?(taskSub==='roles'?'角色管理':tasks.columns.find(c=>c.id===taskSub)?.name??'任務管理'):sub==='settings'?'角色設定':sub==='skills'?'技能設定':sub==='gear'?'裝備':sub==='subcheck'?'鎖潛檢查':'傷害計算';
  if(!window.confirm('確定將「'+label+'」還原至預設？只影響目前頁面的資料。'))return;
  if(tab==='monster'){setData(d=>({...d,monster:{...blankMonster}}));return}
  if(tab==='ied'){setData(d=>({...d,ied:Array(7).fill(0),oldIed:0,newIed:0}));return}
@@ -401,7 +402,7 @@ function App(){
  <button className={tab==='mileage'?'tab active':'tab'} onClick={()=>setTab('mileage')}><Calculator size={16}/>里程購買計算機</button>
  <button className={tab==='tasks'?'tab active':'tab'} onClick={()=>setTab('tasks')}><BookOpen size={16}/>任務管理</button></nav></div>
  {tab!=='ied'&&tab!=='mileage'&&tab!=='tasks'&&<><div className="top-secondary"><div className="character-nav">
- <nav className="tabs character-tabs" aria-label="角色欄位"><button className={tab==='monster'?'tab active':'tab'} onClick={()=>setTab('monster')}><BookOpen size={16}/>怪物圖鑑</button>{data.characters.map(c=><button key={c.id} className={tab===c.id?'tab active':'tab'} onClick={()=>selectCharacter(c)} title={c.name}>{c.name}</button>)}<button className="tab add-tab" onClick={add} aria-label="新增欄位"><Plus size={19}/></button></nav>
+ <nav className="tabs character-tabs" aria-label="角色欄位"><button className={tab==='monster'?'tab active':'tab'} onClick={()=>setTab('monster')}><BookOpen size={16}/>帳號額外加成</button>{data.characters.map(c=><button key={c.id} className={tab===c.id?'tab active':'tab'} onClick={()=>selectCharacter(c)} title={c.name}>{c.name}</button>)}<button className="tab add-tab" onClick={add} aria-label="新增欄位"><Plus size={19}/></button></nav>
  <label className="tab import-tab"><Upload size={16}/>匯入json<input type="file" accept=".json,application/json" hidden onChange={e=>{void importCharacter(e.target.files?.[0]);e.target.value=''}}/></label>
  </div></div>
  {current&&<div className="top-tertiary"><div className="subtabs"><button className={sub==='settings'?'selected':''} onClick={()=>selectSub('settings')}>角色設定</button><button className={sub==='skills'?'selected':''} onClick={()=>selectSub('skills')}>技能設定</button><button className={sub==='gear'?'selected':''} onClick={()=>selectSub('gear')}>裝備</button><button className={sub==='damage'?'selected':''} onClick={()=>selectSub('damage')}>傷害計算</button><button className={sub==='subcheck'?'selected':''} onClick={()=>selectSub('subcheck')}>鎖潛檢查</button><span className="subtab-spacer"/><button onClick={exportCharacter}><Download size={15}/>匯出json</button><button onClick={()=>{setNewName(current.name);setRename(true)}}>重新命名 <ChevronRight size={15}/></button><button className="danger-tab" onClick={remove}><Trash2 size={15}/>刪除該欄位</button></div></div>}</>}

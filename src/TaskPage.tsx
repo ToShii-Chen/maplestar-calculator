@@ -112,7 +112,8 @@ export function TaskPage({value,set,selected,select}:Props){
   close();
  };
  const reset=()=>{
-  if(!column||!window.confirm('確定重置「'+column.name+'」全部任務進度？'))return;
+  if(!column)return;
+  if(value.resetReminderEnabled!==false&&!window.confirm('確定重置「'+column.name+'」全部任務進度？'))return;
   set(prev=>({...prev,columns:prev.columns.map(c=>c.id===selected?{...c,lastReset:new Date().toISOString(),tasks:c.tasks.map(t=>({...t,completedRoleIds:[]}))}:c)}));
  };
  const toggleProgress=(taskId:string,roleId:string,checked:boolean)=>set(prev=>({...prev,columns:prev.columns.map(c=>c.id===selected?{...c,tasks:c.tasks.map(t=>t.id===taskId?{...t,completedRoleIds:checked?[...new Set([...t.completedRoleIds,roleId])]:t.completedRoleIds.filter(id=>id!==roleId)}:t)}:c)}));
@@ -148,7 +149,7 @@ export function TaskPage({value,set,selected,select}:Props){
  <button className="ghost task-danger" disabled={!column.tasks.length} onClick={()=>openDelete('task')}><Trash2 size={15}/>刪除任務</button>
  </div></div>
  <div className="task-roles-grid task-items-grid">{column.tasks.length?column.tasks.map(t=><div className="task-role-card" key={t.id}>{t.name}</div>):<p className="hint task-no-roles">尚未新增任務，可按「新增」建立。</p>}</div></section>
- <section className="panel"><div className="panel-title-row"><h2>任務進度</h2><div className="task-reset-actions"><span>上次重置時間: {fmtDate(column.lastReset)}</span><button className="ghost" onClick={reset}><RotateCcw size={15}/>重製進度</button></div></div>
+ <section className="panel"><div className="panel-title-row"><h2>任務進度</h2><div className="task-reset-actions"><span>上次重置時間: {fmtDate(column.lastReset)}</span><label className="task-reset-reminder"><input type="checkbox" checked={value.resetReminderEnabled!==false} onChange={e=>set(prev=>({...prev,resetReminderEnabled:e.target.checked}))}/><span>重置提醒</span></label><button className="ghost" onClick={reset}><RotateCcw size={15}/>重製進度</button></div></div>
  <div className="task-progress-groups">
  {Array.from({length:Math.max(1,Math.ceil(roleList.length/6))},(_,groupIndex)=>{
   const positions=Array.from({length:6},(_,slot)=>roleList[groupIndex*6+slot]??null);
