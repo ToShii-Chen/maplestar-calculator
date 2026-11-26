@@ -29,6 +29,7 @@ export const setTaskRoles=(s:TaskState,roleId:string,selectedTaskIds:Set<string>
  }))}))
 });
 export const deleteTaskRole=(s:TaskState,id:string):TaskState=>({
+ ...s,
  roles:s.roles.filter(r=>r.id!==id),
  columns:s.columns.map(c=>({...c,tasks:c.tasks.map(t=>({...t,roleIds:t.roleIds.filter(x=>x!==id),completedRoleIds:t.completedRoleIds.filter(x=>x!==id)}))}))
 });
