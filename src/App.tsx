@@ -264,15 +264,15 @@ function loadMileage():MileageState{
 }
 function MileagePage({value,set}:{value:MileageState;set:React.Dispatch<React.SetStateAction<MileageState>>}){
  const update=(p:Partial<MileageState>)=>set(s=>({...s,...p}));
- const fmtMeso=(item:MileageItem)=>{const amount=unitMesoPrice(item,value.gross,value.mesos);return amount===null?'—':fmt(amount)+' 楓幣'};
+ const fmtMeso=(item:MileageItem)=>{const amount=unitMesoPrice(item,value.gross);return amount===null?'—':fmt(amount)+' 楓幣'};
  const add=()=>set(s=>({...s,custom:[...s.custom,{id:'mileage-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),name:'',price:0,quantity:1}]}));
  const change=(id:string,p:Partial<CustomMileageItem>)=>set(s=>({...s,custom:s.custom.map(item=>item.id===id?{...item,...p}:item)}));
  const remove=(id:string)=>set(s=>({...s,custom:s.custom.filter(item=>item.id!==id)}));
  const head=<thead><tr><th>名稱</th><th>價格（里程）</th><th>數量</th><th>換算單位價值（楓幣）</th></tr></thead>;
- return <><p className="intro">計算里程購買之後</p>
- <Section title="里程換算"><div className="fields-grid two"><Field label="購買里程" value={value.gross} onChange={n=>update({gross:Math.max(0,n)})}/><Field label="購買數量 (百萬)" value={value.mesos} onChange={n=>update({mesos:Math.max(0,n)})}/></div>
- <div className="result-strip"><span>實際取得里程（扣除 1% 手續費）</span><strong>{fmt(netMileage(value.gross),1)}</strong></div>
- {!(value.gross>0&&value.mesos>0)&&<p className="hint">填入兩個數值後，才會計算道具的楓幣單價。</p>}</Section>
+ return <><p className="intro">里程購買計算與遊戲中商品試算。</p>
+ <Section title="里程換算"><div className="fields-grid two"><Field label="里程價格" value={value.gross} onChange={n=>update({gross:Math.max(0,n)})}/><Field label="購買數量" value={value.mesos} onChange={n=>update({mesos:Math.max(0,n)})}/></div>
+ <div className="result-strip"><span>實際取得里程（扣除 1% 手續費）</span><strong>{fmt(netMileage(value.gross)*value.mesos,1)}</strong></div>
+ {value.gross<=0&&<p className="hint">輸入每 100 萬楓幣可購買的里程價格，即可計算商品單價；購買數量不影響單位價格。</p>}</Section>
  {mileageCatalog.map(category=><Section key={category.group} title={category.group}><div className="table-scroll"><table className="data-table mileage-table">{head}
  <tbody>{category.items.map(item=><tr key={item.name}><td>{item.name}</td><td>{fmt(item.price)}</td><td>{fmt(item.quantity)}</td><td>{fmtMeso(item)}</td></tr>)}</tbody></table></div></Section>)}
  <Section title="額外" description="自訂項目與輸入的價格、數量會儲存在此瀏覽器；使用「還原至預設」時也會保留。">
@@ -377,7 +377,7 @@ function App(){
  const imported:Character={...c,id,name:c.name.trim().slice(0,10),skills:c.skills.map((s:Skill)=>s.name==='女神的祝福'?{...s,name:'女皇的祝福'}:s),sets:Array.from({length:3},(_,i)=>c.sets[i]??{attack:0,main:0,sub:0}),lockCheckDisabledSets:Array.from({length:3},(_,i)=>c.lockCheckDisabledSets?.[i]??true)};
  setData(d=>({...d,characters:[...d.characters,imported]}));setTab(id);setLastCharacter(id);setSub('settings');setNotice('已匯入角色欄位');
  }catch{setNotice('匯入失敗：請選擇「匯出json」產生的角色檔案')}};
- const resetCurrent=()=>{const label=tab==='monster'?'帳號額外加成':tab==='ied'?'無視防禦計算':tab==='mileage'?'里程購買計算機':tab==='tasks'?(taskSub==='roles'?'角色管理':tasks.columns.find(c=>c.id===taskSub)?.name??'任務管理'):sub==='settings'?'角色設定':sub==='skills'?'技能設定':sub==='gear'?'裝備':sub==='subcheck'?'鎖潛檢查':'傷害計算';
+ const resetCurrent=()=>{const label=tab==='monster'?'帳號額外加成':tab==='ied'?'無視防禦計算':tab==='mileage'?'里程購買計算':tab==='tasks'?(taskSub==='roles'?'角色管理':tasks.columns.find(c=>c.id===taskSub)?.name??'任務管理'):sub==='settings'?'角色設定':sub==='skills'?'技能設定':sub==='gear'?'裝備':sub==='subcheck'?'鎖潛檢查':'傷害計算';
  if(!window.confirm('確定將「'+label+'」還原至預設？只影響目前頁面的資料。'))return;
  if(tab==='monster'){setData(d=>({...d,monster:{...blankMonster}}));return}
  if(tab==='ied'){setData(d=>({...d,ied:Array(7).fill(0),oldIed:0,newIed:0}));return}
@@ -399,7 +399,7 @@ function App(){
  <nav className="tabs" aria-label="主功能頁籤">
  <button className={tab!=='ied'&&tab!=='mileage'&&tab!=='tasks'?'tab active':'tab'} onClick={openCalculator}><Calculator size={16}/>傷害計算機</button>
  <button className={tab==='ied'?'tab active':'tab'} onClick={()=>setTab('ied')}><Calculator size={16}/>無視防禦計算</button>
- <button className={tab==='mileage'?'tab active':'tab'} onClick={()=>setTab('mileage')}><Calculator size={16}/>里程購買計算機</button>
+ <button className={tab==='mileage'?'tab active':'tab'} onClick={()=>setTab('mileage')}><Calculator size={16}/>里程購買計算</button>
  <button className={tab==='tasks'?'tab active':'tab'} onClick={()=>setTab('tasks')}><BookOpen size={16}/>任務管理</button></nav></div>
  {tab!=='ied'&&tab!=='mileage'&&tab!=='tasks'&&<><div className="top-secondary"><div className="character-nav">
  <nav className="tabs character-tabs" aria-label="角色欄位"><button className={tab==='monster'?'tab active':'tab'} onClick={()=>setTab('monster')}><BookOpen size={16}/>帳號額外加成</button>{data.characters.map(c=><button key={c.id} className={tab===c.id?'tab active':'tab'} onClick={()=>selectCharacter(c)} title={c.name}>{c.name}</button>)}<button className="tab add-tab" onClick={add} aria-label="新增欄位"><Plus size={19}/></button></nav>

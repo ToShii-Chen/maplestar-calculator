@@ -11,8 +11,11 @@ export const mileageCatalog:{group:string;items:MileageItem[]}[]=[
  {group:'其他',items:[{name:'30天交易VIP',price:12900,quantity:1},{name:'90天交易VIP',price:34800,quantity:1},{name:'180天交易VIP',price:65700,quantity:1},{name:'背包欄位擴充券',price:4800,quantity:1},{name:'角色欄位擴充券',price:9900,quantity:1}]}
 ];
 export function netMileage(gross:number){return Math.max(0,gross)*.99}
-export function unitMesoPrice(item:MileageItem,gross:number,quantityMillions:number):number|null{
+/** gross is the mileage received per 1,000,000 mesos, before the 1% fee.
+ * The number of batches purchased does not change the unit exchange rate.
+ */
+export function unitMesoPrice(item:MileageItem,gross:number):number|null{
  const actual=netMileage(gross);
- if(actual<=0||quantityMillions<=0||item.quantity<=0)return null;
- return Math.round(item.price*quantityMillions*1000000/actual/item.quantity);
+ if(actual<=0||item.quantity<=0)return null;
+ return Math.round(1000000/actual*item.price/item.quantity);
 }
